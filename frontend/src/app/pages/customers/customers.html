@@ -1,0 +1,112 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">RÉPERTOIRE · SERVICE CLIENTS</p>
+      <h2 class="page__title">
+        Clients <span class="page__count mono">{{ total() }}</span>
+      </h2>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="error mono">⚠ {{ error() }}</div>
+  }
+  @if (flash()) {
+    <div class="flash mono">✓ {{ flash() }}</div>
+  }
+
+  <div class="panel table-card" [class.is-loading]="loading()">
+    <div class="table-scroll">
+      <table mat-table [dataSource]="rows()" class="sentinel-table">
+
+        <ng-container matColumnDef="customerId">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let c" class="mono id">#{{ c.customerId }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Nom</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="name">{{ c.firstName }} {{ c.lastName }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef>Email</th>
+          <td mat-cell *matCellDef="let c" class="mono dim">{{ c.email }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="location">
+          <th mat-header-cell *matHeaderCellDef>Localisation</th>
+          <td mat-cell *matCellDef="let c">
+            {{ c.city }} <span class="country mono">{{ c.country }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="customerType">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="chip mono">{{ c.customerType | fr }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Statut</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="badge" [attr.data-status]="c.status">{{ c.status | fr }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="registrationDate">
+          <th mat-header-cell *matHeaderCellDef>Inscrit le</th>
+          <td mat-cell *matCellDef="let c" class="mono dim">
+            {{ c.registrationDate | date: 'dd/MM/yyyy' }}
+          </td>
+        </ng-container>
+
+        <!-- Suppression de dossier : DOUBLE CLIC obligatoire (meme garde-fou
+             que /utilisateurs). Le bouton n'apparait qu'en ADMIN car la
+             cascade touche 5 services. -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="num">Action</th>
+          <td mat-cell *matCellDef="let c" class="num">
+            @if (canDelete && !busy()) {
+              <button
+                type="button"
+                class="act"
+                [class.is-confirm]="pendingDelete() === c.customerId"
+                (click)="deleteCustomer(c)">
+                @if (pendingDelete() === c.customerId) {
+                  CONFIRMER ?
+                } @else {
+                  SUPPRIMER
+                }
+              </button>
+            } @else if (busy()) {
+              <span class="dim mono">…</span>
+            } @else {
+              <span class="dim mono">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+      </table>
+    </div>
+
+    @if (!loading() && !error() && rows().length === 0) {
+      <div class="empty">Aucun client en base.</div>
+    }
+
+    <mat-paginator
+      class="sentinel-paginator"
+      [length]="total()"
+      [pageIndex]="page()"
+      [pageSize]="pageSize"
+      hidePageSize
+      (page)="onPage($event)"
+      showFirstLastButtons
+      aria-label="Pagination des clients" />
+  </div>
+</section>

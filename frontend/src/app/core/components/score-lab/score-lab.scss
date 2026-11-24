@@ -1,0 +1,241 @@
+.lab {
+  margin-top: 18px;
+  padding: 18px;
+  background: rgba(10, 15, 24, 0.55);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.lab__head {
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line);
+}
+
+/* ── 1. Formule ─────────────────────────────────────── */
+.lab__formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 8px;
+  font-size: 15px;
+}
+
+.tok {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(53, 224, 216, 0.08);
+  border: 1px solid rgba(53, 224, 216, 0.3);
+  color: var(--text);
+}
+
+.tok--sum {
+  background: rgba(255, 176, 32, 0.08);
+  border-color: rgba(255, 176, 32, 0.35);
+}
+
+.tok--bonus {
+  background: rgba(255, 176, 32, 0.16);
+  border-color: rgba(255, 176, 32, 0.55);
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.tok--off {
+  opacity: 0.5;
+}
+
+.tok--score {
+  background: rgba(53, 224, 216, 0.16);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.op {
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+
+.lab__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.lab__ok {
+  color: var(--cyan);
+}
+
+.lab__gap {
+  color: var(--amber);
+}
+
+/* ── 2. Waterfall ───────────────────────────────────── */
+.wf {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 13px;
+}
+
+.wf__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.wf__code {
+  font-size: 12px;
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+}
+
+.wf__pts {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.wf__bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.wf__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 176, 32, 0.35), var(--amber));
+  animation: wf-grow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transform-origin: left;
+}
+
+li.is-top .wf__fill {
+  background: linear-gradient(90deg, rgba(255, 77, 109, 0.35), var(--sev-high));
+}
+
+@keyframes wf-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.wf__reason {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.wf__math {
+  flex: none;
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+
+/* ── 3. Leave-one-out ───────────────────────────────── */
+.loo {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.loo__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.loo-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim);
+}
+
+.loo-chip b {
+  color: var(--cyan);
+}
+
+.loo-chip i {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--sev-high);
+}
+
+.loo-chip.is-major {
+  border-color: rgba(255, 176, 32, 0.5);
+  background: rgba(255, 176, 32, 0.07);
+}
+
+.loo__dom {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.loo__dom strong {
+  color: var(--amber);
+}
+
+/* ── 4. Neutralisées ────────────────────────────────── */
+.neutral {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.neutral summary {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.neutral ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+}
+
+.neutral li {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.n-code {
+  flex: none;
+  color: var(--text-dim);
+  opacity: 0.7;
+}
+
+.n-reason {
+  color: var(--text-dim);
+}
+
+.lab__zero {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}

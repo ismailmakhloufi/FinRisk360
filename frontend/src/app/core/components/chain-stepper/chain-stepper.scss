@@ -1,0 +1,229 @@
+/* ── Chain Stepper : la chaîne vivante tx → evaluate → alert ── */
+.chain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.chain__step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+}
+
+/* nœud */
+.chain__node {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+  border: 1.5px solid var(--line);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glyph {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.glyph--done {
+  color: var(--sev-low);
+}
+
+.glyph--failed {
+  color: var(--sev-high);
+}
+
+.glyph--skipped {
+  color: var(--text-dim);
+}
+
+.glyph--idle {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: 0.5;
+}
+
+/* spinner : anneau tournant cyan */
+.glyph--running {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(53, 224, 216, 0.2);
+  border-top-color: var(--cyan);
+  animation: chain-spin 0.7s linear infinite;
+}
+
+@keyframes chain-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chain__step[data-state='done'] .chain__node {
+  border-color: rgba(61, 220, 151, 0.55);
+  box-shadow: 0 0 12px rgba(61, 220, 151, 0.18);
+}
+
+.chain__step[data-state='failed'] .chain__node {
+  border-color: rgba(255, 77, 109, 0.6);
+  box-shadow: 0 0 12px rgba(255, 77, 109, 0.2);
+}
+
+.chain__step[data-state='running'] .chain__node {
+  border-color: rgba(53, 224, 216, 0.6);
+  box-shadow: 0 0 12px rgba(53, 224, 216, 0.22);
+}
+
+/* corps */
+.chain__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.chain__label {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.chain__endpoint {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.chain__detail {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  color: var(--cyan);
+}
+
+.chain__step[data-state='failed'] .chain__detail {
+  color: var(--sev-high);
+}
+
+.chain__step[data-state='skipped'] .chain__detail {
+  color: var(--text-dim);
+}
+
+/* connecteur vertical */
+.chain__link {
+  position: absolute;
+  left: 16.5px;
+  top: 48px;
+  bottom: -14px;
+  width: 1.5px;
+  background: var(--line);
+}
+
+.chain__link[data-state='done'] {
+  background: rgba(61, 220, 151, 0.5);
+}
+
+.chain__link[data-state='failed'] {
+  background: rgba(255, 77, 109, 0.5);
+}
+
+/* ── Verdict card ─────────────────────────────────── */
+.verdict {
+  margin-top: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.verdict__score {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.verdict__num {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.verdict__scale {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.verdict__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.verdict__badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.verdict__badge[data-level='LOW'] {
+  color: var(--sev-low);
+  background: rgba(61, 220, 151, 0.08);
+  border-color: rgba(61, 220, 151, 0.3);
+}
+
+.verdict__badge[data-level='MEDIUM'] {
+  color: var(--sev-medium);
+  background: rgba(255, 176, 32, 0.08);
+  border-color: rgba(255, 176, 32, 0.3);
+}
+
+.verdict__badge[data-level='HIGH'],
+.verdict__badge[data-level='CRITICAL'] {
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.08);
+  border-color: rgba(255, 77, 109, 0.3);
+}
+
+.verdict__badge[data-decision='APPROVED'] {
+  color: var(--sev-low);
+  background: rgba(61, 220, 151, 0.06);
+  border-color: rgba(61, 220, 151, 0.25);
+}
+
+.verdict__badge[data-decision='MONITORING'] {
+  color: var(--cyan);
+  background: rgba(53, 224, 216, 0.06);
+  border-color: rgba(53, 224, 216, 0.25);
+}
+
+.verdict__badge[data-decision='PENDING_REVIEW'],
+.verdict__badge[data-decision='HOLD'] {
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.08);
+  border-color: rgba(255, 77, 109, 0.3);
+}
+
+.verdict__id {
+  font-size: 11px;
+  color: var(--text-dim);
+}

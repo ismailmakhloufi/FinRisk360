@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Recu REC-{{ tx.transactionId }}{% endblock %}
+
+{% block content %}
+{# L'espace client ne voit JAMAIS le score, le niveau ni la decision du moteur :
+   ce sont des donnees internes de la banque. Seul le statut reel de la
+   transaction est affiche. #}
+{% set s = tx.status | upper %}
+<section class="card receipt">
+  <div class="receipt__head">
+    <div class="receipt__brand">
+      <span class="brand__mark">AB</span>
+      <div>
+        <strong>ATLAS BANK</strong>
+        <span class="brand__sub">recu de transaction · service bancaire tiers</span>
+      </div>
+    </div>
+    <div class="receipt__ref mono">REC-{{ '%06d'|format(tx.transactionId) }}</div>
+  </div>
+
+  <div class="receipt__amount">
+    <span class="field__label">{{ tx.transactionType }}</span>
+    <strong class="mono">{{ '%.2f'|format(tx.amount) }} {{ tx.currency }}</strong>
+  </div>
+
+  <div class="detail-grid">
+    <div><span class="field__label">DATE</span><span class="mono">{{ tx.transactionDate[:16].replace('T', ' ') }}</span></div>
+    <div><span class="field__label">STATUT</span><span class="pill pill--{{ tx.status | lower }}">{{ tx.status }}</span></div>
+    <div><span class="field__label">CONTROLE ANTIFRAUDE</span>
+      {% if s == 'COMPLETED' %}VALIDE
+      {% elif s == 'HELD' %}BLOQUE - EXAMEN EN COURS
+      {% elif s == 'CANCELLED' %}REFUSE
+      {% elif s == 'FAILED' %}ECHEC
+      {% else %}EN COURS D'EXAMEN
+      {% endif %}
+    </div>
+    <div><span class="field__label">CANAL / PAYS</span><span class="mono">{{ tx.channel or '—' }} · {{ tx.country or '—' }}</span></div>
+    <div><span class="field__label">CLIENT</span>{{ customer.firstName }} {{ customer.lastName }} <span class="mono">({{ user.username }})</span></div>
+    <div><span class="field__label">COMPTE SOURCE</span><span class="mono">#{{ account.accountId }} · {{ account.accountNumber }}</span></div>
+    <div><span class="field__label">RIB SOURCE</span><span class="mono">{{ rib }}</span></div>
+    <div><span class="field__label">BENEFICIAIRE</span>{{ tx.beneficiaryName or '—' }}</div>
+    {% if rib_dest %}
+    <div><span class="field__label">RIB BENEFICIAIRE</span><span class="mono">{{ rib_dest }}</span></div>
+    {% endif %}
+    <div><span class="field__label">SOLDE ACTUEL</span><span class="mono strong">{{ '%.2f'|format(account.balance) }} {{ account.currency }}</span></div>
+    <div><span class="field__label">REF. TX</span><span class="mono">TX-{{ '%06d'|format(tx.transactionId) }}</span></div>
+  </div>
+
+  {# IMPRESSION SOUS CONDITION : un recu n'a de valeur que si un analyste a
+     accepte la transaction. Sinon le client imprimerait une operation encore
+     en attente ou annulee -> confusion. #}
+  {% if s == 'COMPLETED' %}
+  <div class="receipt__actions">
+    <button type="button" class="btn btn--primary" onclick="window.print()">IMPRIMER</button>
+    <a class="btn btn--ghost" href="{{ url_for('client') }}">← RETOUR A MON ESPACE</a>
+  </div>
+  {% else %}
+  <div class="receipt__notice">
+    <strong class="field__label">RECU NON IMPRIMABLE</strong>
+    {% if s in ('PENDING', 'HELD') %}
+    <p>Cette transaction n'est pas encore validée par un analyste.
+       Le reçu devient imprimable <em>uniquement</em> si elle est acceptée.</p>
+    {% elif s == 'CANCELLED' %}
+    <p>Cette transaction a été annulée avant règlement : aucun débit n'a été
+       appliqué au compte, il n'y a rien à rembourser.</p>
+    {% else %}
+    <p>Cette transaction n'a pas abouti. Aucun reçu imprimable.</p>
+    {% endif %}
+    <a class="btn btn--ghost" href="{{ url_for('client') }}">← RETOUR A MON ESPACE</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,115 @@
+server:
+  address: ${SERVER_BIND_ADDRESS:127.0.0.1}
+  port: 8085
+
+spring:
+  application:
+    name: alert-case-service
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SMS_WAKE_GMAIL_USER:}
+    password: ${SMS_WAKE_GMAIL_APP_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.ssl.checkserveridentity: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+  task:
+    scheduling:
+      pool:
+        size: 2
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finrisk
+    username: finrisk
+    password: ${POSTGRES_PASSWORD}
+    # Pool borne : 8 services partagent PostgreSQL (max 100 connexions).
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+  jpa:
+    # Le schema SQL (postgres/02-schema.sql) est la source de verite :
+    # Hibernate ne cree rien, il VERIFIE seulement que les entites correspondent.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  jackson:
+    time-zone: UTC
+
+# Appels SORTANTS vers les autres services (lecture seule, jamais de SQL chez eux).
+# risk        : verifier l'evaluation avant de creer l'alerte
+# transaction : perimetre + montant pour l'AGREGATION des alertes
+# account     : client emetteur affiche sur le groupe
+clients:
+  risk:
+    base-url: http://localhost:8084
+  transaction:
+    base-url: http://localhost:8083
+  account:
+    base-url: http://localhost:8082
+  ai:
+    base-url: http://localhost:8086
+
+sms-relay:
+  test-enabled: ${SMS_RELAY_TEST_ENABLED:false}
+  test-recipient: ${SMS_RELAY_TEST_RECIPIENT:}
+  relay-token: ${SMS_RELAY_TOKEN:}
+  operator-token: ${SMS_RELAY_OPERATOR_TOKEN:}
+  fraud-pilot-enabled: ${SMS_FRAUD_PILOT_ENABLED:false}
+  fraud-pilot-start: ${SMS_FRAUD_PILOT_START:}
+
+# AGENT NOCTURNE : balayage horaire de la file EN ATTENTE pendant la fenetre
+# ou l'analyste n'est pas la. Matrice hybride (moteur + IA) : l'agent VALIDE
+# uniquement LOW/MEDIUM + IA NORMAL — jamais d'annulation automatique.
+# Chaque decision est ecrite dans night_agent_decisions (rapport du matin).
+night-agent:
+  enabled: true
+  # Suspendue jusqu'a validation des correctifs de securite et de reprise.
+  auto-validation-enabled: ${NIGHT_AGENT_AUTO_VALIDATION_ENABLED:false}
+  start-hour: 17      # fenetre 17h00 -> 08h00 (heure Africa/Tunis)
+  end-hour: 8
+  max-transactions: 50  # budget de transactions JUGEES (eval+alerte) par
+                         # balayage ; celles sans alerte ne consomment pas le
+                         # budget (scan dur plafonne a 10x, soit 500)
+
+# Agregation d'alertes : une fenetre glissante par perimetre (compte emetteur).
+# Au-dela du seuil de nombre, la severite du GROUPE est planchee (l'alerte
+# individuelle, elle, garde son verdict).
+alert-grouping:
+  window-hours: 24
+  escalate-at-count: 5    # >= 5 alertes  -> le groupe vaut au moins MEDIUM
+  escalate-high-at-count: 10  # >= 10 alertes -> le groupe vaut au moins HIGH
+
+management:
+  health:
+    mail:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    tn.finrisk: INFO
+    org.hibernate.SQL: DEBUG

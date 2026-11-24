@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Administration{% endblock %}
+
+{% block content %}
+{# Pagination des listes : 5 par page, conserve la recherche de l'autre liste #}
+{% macro pager(total, current, pages, which, label) %}
+<div class="pager">
+  <span class="count mono">{{ total }} {{ label }} · page {{ current }}/{{ pages }}</span>
+  {% if pages > 1 %}
+  <div class="pager__links">
+    {% if current > 1 %}
+    <a class="pager__step" href="{{ admin_page(which, current - 1) }}">‹ PRÉC</a>
+    {% endif %}
+    {% for p in range(1, pages + 1) %}
+      {% if p == current %}<span class="pager__page is-active">{{ p }}</span>
+      {% else %}<a class="pager__page" href="{{ admin_page(which, p) }}">{{ p }}</a>{% endif %}
+    {% endfor %}
+    {% if current < pages %}
+    <a class="pager__step" href="{{ admin_page(which, current + 1) }}">SUIV ›</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+<section class="grid2">
+
+  <!-- ── Clients ─────────────────────────────────────── -->
+  <div class="card">
+    <div class="card__head">
+      <h2>Clients</h2>
+      <a class="btn btn--primary" href="{{ url_for('new_client') }}">+ NOUVEAU CLIENT</a>
+    </div>
+
+    <form class="searchbar" method="get" action="{{ url_for('admin') }}">
+      {% if mq %}<input type="hidden" name="mq" value="{{ mq }}" />{% endif %}
+      {% if mp > 1 %}<input type="hidden" name="mp" value="{{ mp }}" />{% endif %}
+      <input class="searchbar__input" type="search" name="cq" value="{{ cq }}"
+             placeholder="ID, nom, email ou RIB du client…" />
+      <button class="btn btn--primary searchbar__btn" type="submit">RECHERCHER</button>
+      {% if cq %}<a class="searchbar__clear" href="{{ admin_link(cq='', cp=1) }}">✕ effacer</a>{% endif %}
+    </form>
+
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Nom</th><th>RIB de ses comptes</th><th>Ville</th><th>Type</th><th>Statut</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr class="{{ 'is-closed' if c.status == 'CLOSED' }}">
+          <td class="mono">{{ c.customerId }}</td>
+          <td><strong>{{ c.firstName }} {{ c.lastName }}</strong><br /><span class="dim">{{ c.email or '—' }}</span></td>
+          <td>
+            {% for rib in ribs.get(c.customerId, []) %}
+              <span class="mono dim">{{ rib }}</span>
+              <button type="button" class="copy" data-copy="{{ rib }}"
+                      title="Copier le RIB" aria-label="Copier le RIB">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+              </button>
+              {% if not loop.last %}<br />{% endif %}
+            {% else %}
+              <span class="dim">—</span>
+            {% endfor %}
+          </td>
+          <td>{{ c.city or '—' }}</td>
+          <td><span class="chip">{{ c.customerType }}</span></td>
+          <td><span class="pill pill--{{ c.status | lower }}">{{ c.status }}</span></td>
+          <td class="right">
+            <a class="btn btn--ghost" href="{{ url_for('customer_detail', customer_id=c.customerId) }}">DOSSIER</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">
+          {% if cq %}Aucun client ne correspond à «&nbsp;{{ cq }}&nbsp;».{% else %}Aucun client.{% endif %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {{ pager(c_total, cp, c_pages, 'cp', 'clients') }}
+  </div>
+
+  <!-- ── Marchands ───────────────────────────────────── -->
+  <div class="card">
+    <div class="card__head">
+      <h2>Marchands</h2>
+      <a class="btn btn--primary" href="{{ url_for('new_merchant') }}">+ NOUVEAU MARCHAND</a>
+    </div>
+
+    <form class="searchbar" method="get" action="{{ url_for('admin') }}">
+      {% if cq %}<input type="hidden" name="cq" value="{{ cq }}" />{% endif %}
+      {% if cp > 1 %}<input type="hidden" name="cp" value="{{ cp }}" />{% endif %}
+      <input class="searchbar__input" type="search" name="mq" value="{{ mq }}"
+             placeholder="ID ou nom du marchand…" />
+      <button class="btn btn--primary searchbar__btn" type="submit">RECHERCHER</button>
+      {% if mq %}<a class="searchbar__clear" href="{{ admin_link(mq='', mp=1) }}">✕ effacer</a>{% endif %}
+    </form>
+
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Nom</th><th>Categorie</th><th>Pays</th><th>Ville</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for m in merchants %}
+        <tr>
+          <td class="mono">{{ m.merchantId }}</td>
+          <td><strong>{{ m.merchantName }}</strong></td>
+          <td><span class="chip">{{ m.merchantCategory or '—' }}</span></td>
+          <td class="mono">{{ m.country or '—' }}</td>
+          <td>{{ m.city or '—' }}</td>
+          <td class="right">
+            <a class="btn btn--ghost" href="{{ url_for('merchant_detail', merchant_id=m.merchantId) }}">DOSSIER</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">
+          {% if mq %}Aucun marchand ne correspond à «&nbsp;{{ mq }}&nbsp;».{% else %}Aucun marchand.{% endif %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {{ pager(m_total, mp, m_pages, 'mp', 'marchands') }}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,153 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">ADMINISTRATION · GESTION DES RÔLES M5</p>
+      <h2 class="page__title">Utilisateurs <span class="page__count mono">{{ rows().length }}</span></h2>
+    </div>
+
+  </header>
+
+  @if (error()) {
+    <div class="error mono">⚠ {{ error() }}</div>
+  }
+  @if (flash()) {
+    <div class="flash mono">✓ {{ flash() }}</div>
+  }
+
+  <!-- Mot de passe provisoire : rendu en clair UNE SEULE FOIS. -->
+  @if (resetResult(); as reset) {
+    <div class="reset" role="status">
+      <div class="reset__title mono">MOT DE PASSE PROVISOIRE · {{ reset.username }} (#{{ reset.id }})</div>
+      <div class="reset__row">
+        <code class="reset__pwd mono">{{ reset.password }}</code>
+        <button type="button" class="reset__copy mono" (click)="copyReset()">
+          {{ copied() ? 'COPIÉ ✓' : 'COPIER' }}
+        </button>
+      </div>
+      <p class="reset__hint mono">
+        Transmettez-le à {{ reset.username }} — il devra le changer dès sa connexion.
+        Ni stocké ni journalisé : cette valeur n'apparaît qu'une fois.
+      </p>
+      <button type="button" class="reset__close mono" (click)="dismissReset()">FERMER</button>
+    </div>
+  }
+
+  <div class="users-grid">
+
+    <!-- ── Liste ─────────────────────────────────────── -->
+    <div class="panel table-card" [class.is-loading]="loading()">
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="mono">ID</th>
+              <th class="mono">Utilisateur</th>
+              <th class="mono">Email</th>
+              <th class="mono">Rôle</th>
+              <th class="mono">Statut</th>
+              <th class="mono">Créé le</th>
+              <th class="mono num">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of rows(); track u.id) {
+              <tr [class.is-self]="isSelf(u)">
+                <td class="mono id">#{{ u.id }}</td>
+                <td class="username">
+                  {{ u.username }}
+                  @if (isSelf(u)) { <span class="you mono">vous</span> }
+                </td>
+                <td class="mono dim">{{ u.email }}</td>
+                <td>
+                  <select
+                    class="role-sel mono"
+                    [value]="u.role"
+                    [disabled]="isSelf(u)"
+                    (change)="changeRole(u, $any($event.target).value)"
+                    aria-label="Changer le rôle">
+                    @for (r of roles; track r) {
+                      <option [value]="r">{{ r | fr }}</option>
+                    }
+                  </select>
+                </td>
+                <td>
+                  <span class="badge mono" [attr.data-active]="u.active">
+                    {{ u.active ? 'ACTIF' : 'DÉSACTIVÉ' }}
+                  </span>
+                </td>
+                <td class="mono dim">{{ u.createdAt | date: 'dd/MM/yyyy' }}</td>
+                <td class="num actions">
+                  <button
+                    type="button"
+                    class="act act--reset"
+                    [class.is-confirm]="pendingReset() === u.id"
+                    (click)="resetPassword(u)">
+                    @if (pendingReset() === u.id) {
+                      CONFIRMER ?
+                    } @else {
+                      RÉINITIALISER
+                    }
+                  </button>
+                  @if (isSelf(u)) {
+                    <span class="dim mono">—</span>
+                  } @else {
+                    <button
+                      type="button"
+                      class="act"
+                      [class.is-confirm]="pendingToggle() === u.id"
+                      [attr.data-on]="u.active"
+                      (click)="toggleActive(u)">
+                      @if (pendingToggle() === u.id) {
+                        {{ u.active ? 'CONFIRMER ?' : 'RÉACTIVER ?' }}
+                      } @else {
+                        {{ u.active ? 'DÉSACTIVER' : 'RÉACTIVER' }}
+                      }
+                    </button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="empty">Aucun utilisateur.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Création ──────────────────────────────────── -->
+    <div class="panel form">
+      <h3 class="form__title mono">NOUVEL UTILISATEUR</h3>
+
+      <label class="field">
+        <span class="field__label mono">IDENTIFIANT</span>
+        <input class="ctl mono" #u type="text" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span class="field__label mono">EMAIL</span>
+        <input class="ctl mono" #e type="email" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span class="field__label mono">MOT DE PASSE (8+ car.)</span>
+        <input class="ctl mono" #p type="password" autocomplete="new-password" />
+      </label>
+      <label class="field">
+        <span class="field__label mono">RÔLE</span>
+        <select class="ctl" #r>
+          @for (role of roles; track role) {
+            <option [value]="role">{{ role | fr }}</option>
+          }
+        </select>
+      </label>
+
+      <button
+        class="run"
+        type="button"
+        [disabled]="busy()"
+        (click)="create(u.value, e.value, p.value, r.value)">
+        {{ busy() ? 'CRÉATION…' : 'CRÉER →' }}
+      </button>
+    </div>
+  </div>
+</section>

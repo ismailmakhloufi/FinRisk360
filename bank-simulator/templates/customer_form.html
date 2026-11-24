@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Nouveau client{% endblock %}
+
+{% block content %}
+<section class="card card--narrow">
+  <div class="card__head">
+    <h2>Créer un client</h2>
+    <a class="btn btn--ghost" href="{{ url_for('admin') }}">← Retour</a>
+  </div>
+
+  <form method="post" class="form form--grid">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+    <fieldset class="fieldset">
+      <legend class="field__label">IDENTITE (table customers)</legend>
+      <label class="field">
+        <span class="field__label">PRENOM *</span>
+        <input name="firstName" required maxlength="50" placeholder="Amina" />
+      </label>
+      <label class="field">
+        <span class="field__label">NOM *</span>
+        <input name="lastName" required maxlength="50" placeholder="Ben Salah" />
+      </label>
+      <label class="field">
+        <span class="field__label">EMAIL (unique)</span>
+        <input name="email" type="email" maxlength="100" placeholder="amina@banque.tn" />
+      </label>
+      <label class="field">
+        <span class="field__label">TELEPHONE</span>
+        <input name="phone" maxlength="20" placeholder="+216 22 000 000" />
+      </label>
+      <label class="field">
+        <span class="field__label">DATE DE NAISSANCE</span>
+        <input name="dateOfBirth" type="date" />
+      </label>
+      <label class="field">
+        <span class="field__label">PAYS (ISO-2)</span>
+        <input name="country" maxlength="2" value="TN" class="w-narrow" />
+      </label>
+      <label class="field">
+        <span class="field__label">VILLE</span>
+        <input name="city" maxlength="50" placeholder="Tunis" />
+      </label>
+      <label class="field">
+        <span class="field__label">TYPE DE CLIENT</span>
+        <select name="customerType">
+          <option value="RETAIL">RETAIL</option>
+          <option value="PREMIUM">PREMIUM</option>
+          <option value="SME">SME</option>
+          <option value="CORPORATE">CORPORATE</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset class="fieldset">
+      <legend class="field__label">COMPTE OUVERT (table accounts)</legend>
+      <label class="field">
+        <span class="field__label">TYPE DE COMPTE</span>
+        <select name="accountType">
+          <option value="CHECKING">CHECKING (courant)</option>
+          <option value="SAVINGS">SAVINGS (epargne)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field__label">SOLDE INITIAL (TND)</span>
+        <input name="openingBalance" type="number" min="0" step="0.01" value="0" />
+      </label>
+    </fieldset>
+
+    <div class="ops">
+      <button type="submit" class="btn btn--primary">+ CREER LE CLIENT ET SON COMPTE</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

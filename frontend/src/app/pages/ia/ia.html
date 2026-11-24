@@ -1,0 +1,110 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <h2 class="page__title">Assistant IA</h2>
+    </div>
+  </header>
+
+  <div class="ia-grid">
+
+    <!-- ── Contexte ──────────────────────────────────── -->
+    <aside class="panel ctx">
+      <h3 class="panel__title mono">ALERTE EN CONTEXTE</h3>
+
+      <label class="field">
+        <span class="field__label mono">CHOISIR UNE ALERTE</span>
+        <select class="ctl" [value]="selectedAlertId() ?? ''" (change)="pick(+$any($event.target).value)">
+          @for (a of alerts(); track a.alertId) {
+            <option [value]="a.alertId">
+              {{ a.alertCode }} · {{ a.severity | fr }} · {{ a.status | fr }}
+            </option>
+          }
+        </select>
+      </label>
+
+      @for (a of alerts(); track a.alertId) {
+        @if (a.alertId === selectedAlertId()) {
+          <div class="ctx-card">
+            <p class="ctx-code mono">{{ a.alertCode }}</p>
+            <p class="ctx-meta mono">
+              type {{ a.alertType | fr }} · évaluation #{{ a.assessmentId }} ·
+              créée {{ a.createdAt | date: 'dd/MM/yyyy' }}
+            </p>
+            <div class="ctx-badges">
+              <span class="sev-badge mono" [attr.data-sev]="a.severity">{{ a.severity | fr }}</span>
+              <span class="st-badge mono" [attr.data-status]="a.status">{{ a.status | fr }}</span>
+            </div>
+            <a class="ctx-link ctx-link--const" [routerLink]="['/constellation', a.alertId]">
+              ◇ VOIR LA CONSTELLATION
+            </a>
+            <a class="ctx-link" routerLink="/alertes">→ détail dans Alertes</a>
+          </div>
+        }
+      }
+
+      <div class="ctx-help">
+        <p class="panel__title mono">QUESTIONS SUPPORTÉES</p>
+        <ul>
+          <li>résumé · signaux · preuves</li>
+          <li>explique-moi l'alerte · constellation</li>
+          <li>pourquoi ce score / facteurs</li>
+          <li>décision moteur · risque · avis IA</li>
+          <li>montant · pays · device · vélocité</li>
+          <li>que faire · confiance · aide</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- ── Conversation ──────────────────────────────── -->
+    <div class="panel chat">
+      <div class="chat__log" #scroll>
+        @for (m of messages(); track $index) {
+          <div class="bubble" [attr.data-role]="m.role">
+            @if (m.role === 'ai') {
+              <p class="bubble__meta mono">
+                SENTINEL·AI
+                @if (m.intent) {
+                  <span class="tag mono">intention {{ m.intent | fr }}</span>
+                }
+                @if (m.mode) {
+                  <span class="tag mono" [attr.data-mode]="m.mode">{{ m.mode }}</span>
+                }
+              </p>
+            }
+            <p class="bubble__text">{{ m.text }}</p>
+            @if (m.constellation && m.alertId) {
+              <a class="bubble__const mono" [routerLink]="['/constellation', m.alertId]">
+                ◇ OUVRIR LA CONSTELLATION
+              </a>
+            }
+          </div>
+        }
+        @if (sending()) {
+          <div class="bubble" data-role="ai">
+            <p class="bubble__meta mono">SENTINEL·AI</p>
+            <p class="bubble__text typing mono">réflexion en cours<span class="dots">…</span></p>
+          </div>
+        }
+      </div>
+
+      <div class="chat__suggestions">
+        @for (s of suggestions; track s) {
+          <button type="button" class="sug mono" [disabled]="sending() || !selectedAlertId()" (click)="ask(s)">
+            {{ s }}
+          </button>
+        }
+      </div>
+
+      <form class="chat__form" (submit)="$event.preventDefault(); ask(input.value); input.value = ''">
+        <input
+          class="ctl mono"
+          #input
+          type="text"
+          placeholder="Pose ta question sur l'alerte…"
+          autocomplete="off"
+          [disabled]="!selectedAlertId() || sending()" />
+        <button class="send" type="submit" [disabled]="!selectedAlertId() || sending()">ENVOYER ▸</button>
+      </form>
+    </div>
+  </div>
+</section>

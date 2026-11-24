@@ -1,0 +1,60 @@
+server:
+  address: ${SERVER_BIND_ADDRESS:127.0.0.1}
+  port: 8086
+
+spring:
+  application:
+    name: ai-assistant-service
+
+  jackson:
+    time-zone: UTC
+
+  # Chat SQL (DataQueryEngine) : connexion LECTURE SEULE a la base finrisk.
+  # User dedie finrisk_ro (droits SELECT uniquement) — le SQL genere est en
+  # plus valide par SqlGuard avant execution. Echec de connexion = chat
+  # sans SQL, jamais d'erreur 500 (voir DataQueryEngine).
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finrisk
+    username: ${AI_DB_USER:finrisk_ro}
+    password: ${AI_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 4
+      connection-timeout: 3000
+
+# Appels SORTANTS : lecture seule chez les autres services (jamais de SQL hors soi).
+clients:
+  risk:
+    base-url: http://localhost:8084
+  transaction:
+    base-url: http://localhost:8083
+  customer:
+    base-url: http://localhost:8081
+  account:
+    base-url: http://localhost:8082
+  alert:
+    base-url: http://localhost:8085
+
+# Chat optionnel : si AI_LLM_KEY est definie (compatible OpenAI), le chat
+# naturel est active ; sinon le moteur deterministe repond (defaut offline).
+ai:
+  llm:
+    base-url: ${AI_LLM_BASE_URL:https://api.openai.com/v1}
+    model: ${AI_LLM_MODEL:gpt-4o-mini}
+    key: ${AI_LLM_KEY:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    tn.finrisk: INFO

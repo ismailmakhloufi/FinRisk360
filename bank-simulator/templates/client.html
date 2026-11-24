@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}Mon espace client{% endblock %}
+
+{% block content %}
+{% if customer %}
+{% set total = accounts | sum(attribute='balance') %}
+{% set actifs = accounts | selectattr('status', 'equalto', 'ACTIVE') | list %}
+<section class="card">
+  <div class="card__head">
+    <h2>Bonjour {{ customer.firstName }} {{ customer.lastName }}</h2>
+    <span class="count mono">client #{{ customer.customerId }}</span>
+  </div>
+
+  <!-- Identite + identifiant de connexion -->
+  <div class="detail-grid">
+    <div><span class="field__label">NOM / PRENOM</span>{{ customer.lastName }} {{ customer.firstName }}</div>
+    <div><span class="field__label">IDENTIFIANT</span><span class="mono">{{ user.username }}</span></div>
+    <div><span class="field__label">EMAIL</span>{{ customer.email or '—' }}</div>
+    <div><span class="field__label">TELEPHONE</span>{{ customer.phone or '—' }}</div>
+    <div><span class="field__label">VILLE</span>{{ customer.city or '—' }}</div>
+    <!-- Deux statuts DIFFERENTS, qu'il ne faut pas confondre :
+         - le DOSSIER client (SUSPENDED par la banque -> tout est bloque)
+         - l'ACCES aux operations (depend des statuts de SES comptes) -->
+    <div><span class="field__label">STATUT DU DOSSIER</span><span class="pill pill--{{ customer.status | lower }}" data-status-customer>{{ customer.status }}</span></div>
+    <div><span class="field__label">ACCÈS AUX OPÉRATIONS</span><span class="pill pill--{{ 'active' if actifs else 'blocked' }}" data-status-access>{{ 'ACTIVE' if actifs else 'BLOQUÉ' }}</span></div>
+  </div>
+
+  <!-- Solde reel -->
+  <h3 class="section">SOLDE REEL — MES COMPTES ({{ accounts | length }})</h3>
+  <div class="balance">
+    <div>
+      <span class="field__label">SOLDE TOTAL REEL</span>
+      <div class="balance__amount mono" data-bal-total>{{ '%.2f'|format(total) }} TND</div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>ID COMPTE</th><th>NUMERO</th><th>RIB (TUNISIE)</th><th>Type</th><th>Statut</th><th class="right">Solde reel</th></tr>
+      </thead>
+      <tbody>
+        {% for a in accounts %}
+        {% set rib = rib_for(a.accountNumber) %}
+        <tr>
+          <td class="mono strong">#{{ a.accountId }}</td>
+          <td class="mono">{{ a.accountNumber }}</td>
+          <td class="mono dim">
+            <span>{{ rib }}</span>
+            <button type="button" class="copy" data-copy="{{ rib }}"
+                    title="Copier le RIB" aria-label="Copier le RIB">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+            </button>
+          </td>
+          <td><span class="chip">{{ a.accountType }}</span></td>
+          <td><span class="pill pill--{{ a.status | lower }}" data-status-account="{{ a.accountId }}">{{ a.status }}</span></td>
+          <td class="right mono strong" data-bal-account="{{ a.accountId }}">{{ '%.2f'|format(a.balance) }} {{ a.currency }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">Aucun compte.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Operations : 2 modes -->
+  <h3 class="section">OPERATIONS — 2 MODES</h3>
+
+  <!-- Bloc opérations : rendu DANS LES DEUX CAS puis basculé par le poll,
+       pour qu'un GELER/RÉACTIVER fait par l'admin se voie sans recharger. -->
+  <div id="ops-block" {% if not actifs %}hidden{% endif %}>
+  <div class="modes">
+    <input type="radio" class="modes__radio" id="mode-envoi" name="mode" value="ENVOI" checked />
+    <input type="radio" class="modes__radio" id="mode-retrait" name="mode" value="RETRAIT" />
+
+    <div class="modes__tabs">
+      <label class="modes__tab" for="mode-envoi">DEPOSER ▸ ENVOYER A UN DESTINATAIRE</label>
+      <label class="modes__tab" for="mode-retrait">RETIRER ▸ SORTIE D'ESPECES</label>
+    </div>
+
+    <!-- Mode 1 : envoi vers un destinataire -->
+    <form class="modes__panel modes__panel--envoi" method="post" action="{{ url_for('operate') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+      <div class="form form--ops">
+        <label class="field">
+          <span class="field__label">COMPTE A DEBITER</span>
+          <select name="accountId" required>
+            {% for a in accounts if a.status == 'ACTIVE' %}
+              <option value="{{ a.accountId }}"
+                      data-bal-option="{{ a.accountId }}" data-number="{{ a.accountNumber }}">
+                #{{ a.accountId }} · {{ a.accountNumber }} · {{ '%.2f'|format(a.balance) }} TND
+              </option>
+            {% else %}
+              <option disabled selected>Aucun compte actif</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">MONTANT (TND)</span>
+          <input name="amount" type="number" min="0.01" step="0.01" value="15000" required />
+        </label>
+        <label class="field">
+          <span class="field__label">DESTINATAIRE (nom)</span>
+          <input name="beneficiary" type="text" maxlength="100" required
+                 placeholder="nom de la personne ou de l'entreprise" />
+        </label>
+        <label class="field">
+          <span class="field__label">RIB DU DESTINATAIRE (obligatoire)</span>
+          <input name="beneficiaryRib" type="text" maxlength="30" required
+                 placeholder="TN 0109 001 xxxxxxxxxx xx" />
+        </label>
+        <div class="ops">
+          <button type="submit" name="action" value="ENVOI" class="btn btn--deposit">ENVOYER ▸</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Mode 2 : retrait -->
+    <form class="modes__panel modes__panel--retrait" method="post" action="{{ url_for('operate') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+      <div class="form form--ops">
+        <label class="field">
+          <span class="field__label">COMPTE A DEBITER</span>
+          <select name="accountId" required>
+            {% for a in accounts if a.status == 'ACTIVE' %}
+              <option value="{{ a.accountId }}"
+                      data-bal-option="{{ a.accountId }}" data-number="{{ a.accountNumber }}">
+                #{{ a.accountId }} · {{ a.accountNumber }} · {{ '%.2f'|format(a.balance) }} TND
+              </option>
+            {% else %}
+              <option disabled selected>Aucun compte actif</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">MONTANT (TND)</span>
+          <input name="amount" type="number" min="0.01" step="0.01" value="15000" required />
+        </label>
+        <div class="ops">
+          <button type="submit" name="action" value="RETRAIT" class="btn btn--withdraw">RETIRER ▸</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  </div><!-- /#ops-block -->
+
+  <!-- Panneau « compte gelé / clos » : affiché quand AUCUN compte n'est ACTIF -->
+  <div id="ops-blocked" class="blocked" role="alert" {% if actifs %}hidden{% endif %}>
+    <p class="blocked__title">⛔ OPÉRATIONS SUSPENDUES</p>
+    <p class="blocked__msg" id="ops-blocked-msg">
+      Vos comptes sont <strong>FROZEN</strong> (gelés) : aucun dépôt ni retrait
+      n'est possible pour le moment.
+      <strong>Contactez votre banque</strong> pour faire débloquer votre compte.
+    </p>
+    <p class="blocked__hint">Dès qu'un de vos comptes redevient ACTIVE, les
+      opérations se réactivent automatiquement ici.</p>
+  </div>
+
+  <!-- Historique -->
+  <h3 class="section">MES TRANSACTIONS ({{ transactions | length }})</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Type</th><th>Beneficiaire</th><th>Statut</th><th>Recu</th><th class="right">Montant</th></tr>
+        </thead>
+        <tbody>
+        {% for t in transactions | sort(attribute='transactionId', reverse=true) %}
+        <tr>
+          <td class="mono">{{ t.transactionId }}</td>
+          <td class="mono">{{ t.transactionDate[:16].replace('T', ' ') }}</td>
+          <td><span class="chip">{{ t.transactionType }}</span></td>
+          <td>{{ t.beneficiaryName or '—' }}</td>
+          <td><span class="pill pill--{{ t.status | lower }}" data-status-tx="{{ t.transactionId }}">{{ t.status }}</span></td>
+          {# Le recu est consultable a tout moment ; l'impression n'est proposee
+             sur la page que si un analyste a accepte la transaction. #}
+          <td><a class="link" href="{{ url_for('receipt', tx_id=t.transactionId) }}">ouvrir</a></td>
+          <td class="right mono strong">{{ '%.2f'|format(t.amount) }} {{ t.currency }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="empty">Aucune transaction.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Changement de mot de passe -->
+  <h3 class="section">MON MOT DE PASSE</h3>
+  <form class="form form--pwd" method="post" action="{{ url_for('change_client_password') }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+    <label class="field">
+      <span class="field__label">MOT DE PASSE ACTUEL</span>
+      <input name="currentPassword" type="password" required autocomplete="current-password" />
+    </label>
+    <label class="field">
+      <span class="field__label">NOUVEAU MOT DE PASSE (6+ caracteres)</span>
+      <input name="newPassword" type="password" required minlength="12" autocomplete="new-password" />
+    </label>
+    <div class="ops">
+      <button type="submit" class="btn btn--primary">CHANGER</button>
+    </div>
+  </form>
+</section>
+
+<script>
+// Soldes + STATUTS REELS : rafraîchit les chiffres et les pastilles toutes
+// les 3 s (sans recharger). Une décision d'analyste (COMPLETED / CANCELLED)
+// et un changement de compte (FROZEN / CLOSED) apparaissent donc seuls.
+(async () => {
+  const fmt = (n) => Number(n).toFixed(2);
+  const setPill = (el, status) => {
+    if (!status || el.textContent === status) return;
+    el.textContent = status;
+    el.className = 'pill pill--' + status.toLowerCase();
+  };
+  // Message « contactez la banque » adapté au statut réel des comptes.
+  const blockedMsg = (statuses) => {
+    const frozen = statuses.filter((s) => s === 'FROZEN').length;
+    const closed = statuses.filter((s) => s === 'CLOSED').length;
+    if (closed && frozen) {
+      return 'Vos comptes sont <strong>CLOSES</strong> (comptes #… clos) et ' +
+        '<strong>FROZEN</strong> (gelés) : aucun dépôt ni retrait possible. ' +
+        '<strong>Contactez votre banque</strong>.';
+    }
+    if (closed) {
+      return 'Vos comptes sont <strong>CLOSES</strong> : le compte est définitivement ' +
+        'fermé, plus aucune opération n\'est possible. ' +
+        '<strong>Contactez votre banque</strong> pour ouvrir un nouveau compte.';
+    }
+    return 'Vos comptes sont <strong>FROZEN</strong> (gelés) : aucun dépôt ni retrait ' +
+      'n\'est possible pour le moment. ' +
+      '<strong>Contactez votre banque</strong> pour faire débloquer votre compte.';
+  };
+
+  const opsBlock = document.getElementById('ops-block');
+  const opsBlocked = document.getElementById('ops-blocked');
+  const opsBlockedMsg = document.getElementById('ops-blocked-msg');
+
+  async function tick() {
+    try {
+      const r = await fetch('/client/balances.json');
+      if (!r.ok) return;
+      const d = await r.json();
+      document.querySelectorAll('[data-bal-total]').forEach((el) => {
+        el.textContent = fmt(d.total) + ' TND';
+      });
+      // Statut du DOSSIER client et ACCES reel aux operations (2 pastilles
+      // distinctes : un dossier ACTIVE peut avoir tous ses comptes gelés).
+      document.querySelectorAll('[data-status-customer]').forEach((el) => {
+        setPill(el, d.customerStatus);
+      });
+      document.querySelectorAll('[data-status-access]').forEach((el) => {
+        // « BLOQUÉ » n'est pas un statut serveur : la classe est posée à la
+        // main, sinon setPill irait chercher une classe pill--bloqué inexistante.
+        const label = d.access === 'ACTIVE' ? 'ACTIVE' : 'BLOQUÉ';
+        if (el.textContent !== label) {
+          el.textContent = label;
+          el.className = 'pill pill--' + (d.access === 'ACTIVE' ? 'active' : 'blocked');
+        }
+      });
+      d.accounts.forEach((a) => {
+        document.querySelectorAll('[data-bal-account="' + a.accountId + '"]').forEach((el) => {
+          el.textContent = fmt(a.balance) + ' TND';
+        });
+        document.querySelectorAll('[data-bal-option="' + a.accountId + '"]').forEach((el) => {
+          el.textContent = '#' + a.accountId + ' — ' + el.dataset.number + ' — ' + fmt(a.balance) + ' TND';
+          // Un compte gelé/clos ne doit plus être sélectionnable, sinon le
+          // formulaire repartirait sur un compte bloqué côté serveur.
+          el.disabled = a.status !== 'ACTIVE';
+        });
+        document.querySelectorAll('[data-status-account="' + a.accountId + '"]').forEach((el) => {
+          setPill(el, a.status);
+        });
+      });
+      (d.transactions || []).forEach((t) => {
+        document.querySelectorAll('[data-status-tx="' + t.transactionId + '"]').forEach((el) => {
+          setPill(el, t.status);
+        });
+      });
+
+      // Bascule opérations <-> « contactez la banque » selon le statut réel.
+      const actifs = d.accounts.filter((a) => a.status === 'ACTIVE');
+      const bloques = d.accounts.filter((a) => a.status !== 'ACTIVE');
+      if (opsBlock && opsBlocked) {
+        opsBlock.hidden = actifs.length === 0;
+        opsBlocked.hidden = actifs.length > 0;
+        if (actifs.length === 0 && opsBlockedMsg && bloques.length) {
+          opsBlockedMsg.innerHTML = blockedMsg(bloques.map((a) => a.status));
+        }
+        // Si le compte sélectionné vient d'être gelé, on repointe sur un actif.
+        document.querySelectorAll('select[name="accountId"]').forEach((sel) => {
+          const opt = sel.selectedOptions[0];
+          if (opt && opt.disabled && actifs.length) sel.value = String(actifs[0].accountId);
+        });
+      }
+    } catch (e) { /* API momentanement indisponible : on reessaie au tick suivant */ }
+  }
+  tick();
+  setInterval(tick, 3000);
+})();
+</script>
+{% else %}
+<section class="card card--narrow">
+  <p class="empty">Dossier indisponible — l'API FinRisk360 est peut-etre arretee.</p>
+</section>
+{% endif %}
+{% endblock %}

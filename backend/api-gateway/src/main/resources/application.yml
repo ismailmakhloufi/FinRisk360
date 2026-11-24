@@ -1,0 +1,145 @@
+server:
+  address: ${SERVER_BIND_ADDRESS:127.0.0.1}
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+# Contrat JWT partage avec auth-service : MÊME secret, MÊME issuer.
+# En production : variable d'environnement uniquement (jamais de secret en dur).
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET}
+    issuer: finrisk360
+
+gateway:
+  # Chemins ouverts (pas de token verifie par le gateway) : le auth-service
+  # se protege lui-meme sur ces routes (login public, refresh/me sur token).
+  public-paths:
+    - /api/auth/**
+
+  # Une URL par service : c'est LE seul endroit ou vivent les ports des
+  # backends (les routes ne referment que des chemins + des roles). Les
+  # tests de surchargent une cle ici sans toucher a la table des routes.
+  upstreams:
+    customer: http://localhost:8081
+    account: http://localhost:8082
+    transaction: http://localhost:8083
+    risk: http://localhost:8084
+    alert-case: http://localhost:8085
+    ai: http://localhost:8086
+    auth: http://localhost:8087
+
+  # Routes statiques (M0 : pas de discovery, pas de Netflix/Eureka).
+  # match = AntPathMatcher, premiere route gagnante (l'ordre compte).
+  # read-roles  : roles admis sur GET/HEAD/OPTIONS
+  # write-roles : roles admis sur POST/PUT/PATCH/DELETE
+  # ["*"] = tout utilisateur AUTHENTIFIE (role indifferent).
+  # NB : aucune regle "le plus gros role a tout le droit" : le RBAC est
+  # MATRICIEL (§18) — un MANAGER ne lit pas les logs d'audit, un ANALYST
+  # n'ecrit pas les regles, meme si les deux sont "hauts" dans leur metier.
+  routes:
+    - path: /api/customers/**
+      service: customer
+      read-roles: ["*"]
+      write-roles: ["MANAGER", "ADMIN"]
+
+    - path: /api/accounts/**
+      service: account
+      read-roles: ["*"]
+      write-roles: ["MANAGER", "ADMIN"]
+
+    - path: /api/transactions/**
+      service: transaction
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    # Marchands (meme service que les transactions) : profil MATRICIEL
+    # identique aux clients — lecture ouverte, ecriture gestionnaire/admin.
+    - path: /api/merchants/**
+      service: transaction
+      read-roles: ["*"]
+      write-roles: ["MANAGER", "ADMIN"]
+
+    - path: /api/evaluations/**
+      service: risk
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    # Regles de scoring : ecriture reservee a l'ADMIN (conflit M3 : route
+    # autrefois ouverte, la matrice M5 la referme).
+    - path: /api/rules/**
+      service: risk
+      read-roles: ["*"]
+      write-roles: ["ADMIN"]
+
+    - path: /api/alerts/**
+      service: alert-case
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    # Groupes d'alertes apparentees (agregation M5) : pas de creation
+    # manuelle (AlertGroupService les ouvre a chaque alerte), mais l'analyste
+    # peut TRANCHER dessus (PATCH /{id}/decision : ACCEPT / REFUSE + remboursement).
+    # Note : /api/alerts/** ne couvre PAS ce chemin (le caractere
+    # suivant "alerts" est un "-", pas un "/").
+    - path: /api/alert-groups/**
+      service: alert-case
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    - path: /api/cases/**
+      service: alert-case
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    # Agent nocturne (M4) : rapport du matin + etat de la fenetre en
+    # lecture ; le declencheur manuel POST /run est une ECRITURE
+    # analyste/admin (meme profil que les alertes qu'il traite).
+    # NB : aucune route existante ne couvre /api/night-agent/** (segment
+    # "night-agent" distinct de "alerts", "cases", etc.).
+    - path: /api/night-agent/**
+      service: alert-case
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    # Assistant IA (M6) : analyse + chat, ECRITURE analyste/admin — le meme
+    # profil que les alertes qu'il analyse (pas de nouvelle porte de derriere).
+    - path: /api/ai/**
+      service: ai
+      read-roles: ["*"]
+      write-roles: ["ANALYST", "ADMIN"]
+
+    # Journal d'audit : LECTURE admin/manager seulement (les traces ne
+    # sortent pas a n'importe qui).
+    - path: /api/audit/**
+      service: alert-case
+      read-roles: ["MANAGER", "ADMIN"]
+      write-roles: ["ADMIN"]
+
+    # Comptes : entierement admin, y compris en lecture.
+    - path: /api/users/**
+      service: auth
+      read-roles: ["ADMIN"]
+      write-roles: ["ADMIN"]
+
+    # Auth : route publique au niveau du gateway (login/refresh/me sont
+    # proteges par le auth-service lui-meme — defense en profondeur).
+    - path: /api/auth/**
+      service: auth
+      read-roles: ["*"]
+      write-roles: ["*"]
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    tn.finrisk: INFO

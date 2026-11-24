@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+
+{% block content %}
+<section class="login">
+  <div class="login__card">
+    <div class="login__brand">
+      <span class="brand__mark">AB</span>
+      <div>
+        <strong>ATLAS BANK</strong>
+        <span class="brand__sub">console partenaire · connexion</span>
+      </div>
+    </div>
+
+    <form method="post" class="form login__form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+      <label class="field">
+        <span class="field__label">IDENTIFIANT, E-MAIL OU NUMÉRO</span>
+        <input name="username" required autofocus autocomplete="username"
+               value="{{ username }}" placeholder="admin, client.44 ou merchant.7" />
+      </label>
+      <label class="field">
+        <span class="field__label">MOT DE PASSE</span>
+        <input name="password" type="password" required autocomplete="current-password"
+               placeholder="••••••••" />
+      </label>
+      <button type="submit" class="btn btn--primary login__btn">SE CONNECTER ▸</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

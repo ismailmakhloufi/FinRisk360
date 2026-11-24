@@ -1,0 +1,61 @@
+<mat-sidenav-container class="shell">
+  <mat-sidenav mode="side" opened class="shell__nav" position="start">
+    <div class="brand">
+      <mat-icon class="brand__icon">shield</mat-icon>
+      <div class="brand__text">
+        <span class="brand__name">FINRISK360</span>
+        <span class="brand__sub">SENTINEL CONSOLE</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      @for (item of nav; track item.path) {
+        <a class="nav__item" [routerLink]="item.path" routerLinkActive="is-active">
+          <mat-icon>{{ item.icon }}</mat-icon>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+
+      @if (auth.role() === 'ADMIN') {
+        <div class="nav__section">Administration</div>
+        @for (item of adminNav; track item.path) {
+          <a class="nav__item" [routerLink]="item.path" routerLinkActive="is-active">
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+          </a>
+        }
+      }
+    </nav>
+
+  </mat-sidenav>
+
+  <mat-sidenav-content class="shell__content">
+    <header class="bar">
+      <span class="bar__title">Console d'investigation</span>
+      <div class="bar__right">
+        <span class="pill pill--secure">
+          <span class="pill__dot"></span>
+          SYSTÈME SÉCURISÉ
+        </span>
+
+        <!-- Identité : avatar + rôle -->
+        <div class="who" [attr.title]="auth.user()?.username">
+          <span class="avatar mono">{{ initials() }}</span>
+          <span class="who__meta">
+            <span class="who__name">{{ auth.user()?.username }}</span>
+            <span class="role-badge mono" [attr.data-role]="auth.role()">{{ auth.role() | fr }}</span>
+          </span>
+        </div>
+
+        <button class="logout" (click)="auth.logout()" title="Déconnexion">
+          <mat-icon>logout</mat-icon>
+          <span class="logout__label">Déconnexion</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

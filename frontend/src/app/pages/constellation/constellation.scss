@@ -1,0 +1,677 @@
+/* ── Page Constellation : graphe d'investigation + narratif IA ── */
+
+.const-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Barre de stats ─────────────────────────────────────────── */
+.const-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  .hot strong { color: var(--sev-high); }
+  strong { color: var(--text); }
+  .dim { margin-left: auto; }
+}
+
+/* Le bornage du graphe est déclaré, jamais caché. */
+.const-trunc {
+  padding: 10px 16px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--amber);
+  background: rgba(255, 176, 32, 0.07);
+  border: 1px solid rgba(255, 176, 32, 0.35);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Grille principale ──────────────────────────────────────── */
+.const-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(295px, 350px);
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .const-grid { grid-template-columns: 1fr; }
+}
+
+.graph-panel {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.depth-controls {
+  display: inline-flex;
+  align-self: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(53, 224, 216, 0.045);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+
+  button {
+    cursor: pointer;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 8px 15px;
+    font: inherit;
+    font-size: 12px;
+
+    &[aria-pressed='true'] {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(53, 224, 216, 0.09);
+    }
+  }
+}
+
+.depth-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.flow-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+
+  div {
+    padding: 9px 12px;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+  }
+
+  div:nth-child(2) {
+    border-color: var(--cyan);
+    background: rgba(53, 224, 216, 0.055);
+  }
+
+  span, strong { display: block; overflow-wrap: anywhere; }
+  span { color: var(--text-dim); font-size: 11px; }
+  strong { margin-top: 3px; font-size: 13px; }
+}
+
+.graph-zone {
+  fill: rgba(53, 224, 216, 0.045);
+  stroke: rgba(53, 224, 216, 0.26);
+  pointer-events: none;
+}
+
+.graph-zone--context { fill: rgba(96, 165, 250, 0.035); stroke: rgba(96, 165, 250, 0.24); }
+.graph-zone--network { fill: rgba(217, 70, 239, 0.045); stroke: rgba(217, 70, 239, 0.25); }
+.graph-zone-label { fill: var(--text-dim); font-size: 11px; letter-spacing: 0.08em; pointer-events: none; }
+.rel.rel--device { border-top: 2px dashed #60a5fa; }
+.rel.rel--ip { border-top: 2px dotted #34d399; }
+
+.graph-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.graph-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+}
+
+.tool-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--cyan);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  &:hover { background: rgba(53, 224, 216, 0.08); }
+}
+
+.tool-hint { color: var(--text-dim); }
+
+/* ── SVG du graphe ──────────────────────────────────────────── */
+.graph-svg {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(53, 224, 216, 0.03), transparent 65%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  &:active { cursor: grabbing; }
+}
+
+/* ── Arêtes ─────────────────────────────────────────────────── */
+.edge {
+  stroke: var(--text-dim);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.15s ease, stroke 0.15s ease;
+  &:hover { opacity: 1; stroke: var(--cyan); }
+  &.is-selected {
+    stroke: var(--cyan);
+    opacity: 1;
+    stroke-dasharray: none;
+  }
+  &.is-active {
+    stroke: var(--cyan);
+    opacity: 0.95;
+  }
+  &.is-dimmed { opacity: 0.14; }
+  /* SHARED_WITH : magenta, pointillé LONG — la preuve centrale doit
+     sauter aux yeux et ne pas se confondre avec BELONGS_TO (rouge fin). */
+  &[data-type='SHARED_WITH'] { stroke: #d946ef; stroke-dasharray: 10 4; opacity: 0.9; }
+  &[data-type='OWNS'] { stroke: var(--cyan); }
+  &[data-type='SENT'] { stroke: var(--amber); }
+  &[data-type='TO'] { stroke: var(--sev-medium); }
+  &[data-type='BELONGS_TO'] { stroke: var(--sev-high); stroke-dasharray: 3 3; }
+  &[data-type='USED_DEVICE'],
+  &[data-type='FROM_IP'] { stroke: var(--sev-low); }
+  &[data-type='IN_COUNTRY'] { stroke: var(--text-dim); stroke-dasharray: 2 3; }
+  &[data-type='SHARED_BENEFICIARY'] { stroke: #e879f9; stroke-dasharray: 7 4; }
+  &[data-type='SHARED_DEVICE'] { stroke: #60a5fa; stroke-dasharray: 11 4; }
+  &[data-type='SHARED_IP'] { stroke: #34d399; stroke-dasharray: 3 5; }
+  &.is-dimmed { opacity: 0.14; }
+  &:focus-visible { stroke: var(--cyan); opacity: 1; }
+}
+
+/* Flèches de direction (qui paie qui) */
+.arrow--owns { fill: var(--cyan); }
+.arrow--sent { fill: var(--amber); }
+.arrow--to   { fill: var(--sev-medium); }
+
+/* Label PERMANENT des preuves symétriques (partage, appartenance) */
+.edge-tag {
+  font-size: 9px;
+  fill: #d946ef;
+  text-anchor: middle;
+  pointer-events: none;
+  letter-spacing: 0.04em;
+}
+
+/* ── Nœuds : la FORME dit le type, la COULEUR dit le risque ── */
+.node {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  &.is-dimmed { opacity: 0.3; }
+  &.is-selected { filter: drop-shadow(0 0 10px rgba(53, 224, 216, 0.9)); }
+  &:focus-visible { filter: drop-shadow(0 0 8px var(--cyan)); }
+}
+
+.edge-proof__endpoints { margin: 5px 0 7px; color: var(--text-dim); overflow-wrap: anywhere; }
+.transaction-proofs, .relation-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.transaction-proofs li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; padding: 6px 0; }
+.transaction-proofs a { color: var(--cyan); }
+.transaction-proofs time, .relation-list span, .why__context { color: var(--text-dim); font-size: 12px; }
+.relation-list button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  cursor: pointer;
+}
+.relation-list span { overflow-wrap: anywhere; }
+.engine-score { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin: 10px 0; }
+.engine-score strong { font-size: 24px; color: var(--cyan); }
+.engine-score span { color: var(--text-dim); font-size: 12px; }
+
+.investigation-checks { display: grid; gap: 10px; }
+.investigation-check {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 11px;
+  overflow-wrap: anywhere;
+
+  .check-fact { color: var(--text); font-weight: 650; margin: 0 0 7px; }
+  dl { margin: 0 0 10px; }
+  dt { margin-top: 7px; font-size: 11px; color: var(--cyan); }
+  dd { margin: 2px 0 0; line-height: 1.5; font-size: 12px; }
+  button { margin: 3px 0; }
+}
+.check-source {
+  color: var(--text-dim);
+  margin-top: 6px;
+  font-size: 12px;
+  summary { color: var(--cyan); cursor: pointer; }
+  p { margin: 4px 0; }
+}
+
+.node-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  fill: var(--text);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.node-type {
+  font-size: 8.5px;
+  fill: var(--text-dim);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* Gabarits par type — contour + remplissage teinté par le risque via data-risk */
+.g-alrt { fill: rgba(255, 77, 109, 0.15); stroke: var(--sev-high); stroke-width: 2.5; }
+.g-cust { fill: rgba(53, 224, 216, 0.14); stroke: var(--cyan); stroke-width: 2; }
+.g-acc  { fill: rgba(255, 176, 32, 0.12); stroke: var(--amber); stroke-width: 1.8; }
+.g-tx   { fill: rgba(148, 163, 184, 0.14); stroke: var(--text-dim); stroke-width: 1.6; }
+.g-ben  { fill: rgba(255, 176, 32, 0.16); stroke: var(--sev-medium); stroke-width: 1.8; }
+.g-dev  { fill: rgba(61, 220, 151, 0.12); stroke: var(--sev-low); stroke-width: 1.6; }
+.g-ip   { fill: rgba(61, 220, 151, 0.16); stroke: var(--sev-low); stroke-width: 1.4; }
+.g-ctry { fill: rgba(148, 163, 184, 0.1);  stroke: var(--text-dim); stroke-width: 1.4; }
+.g-grp  { fill: rgba(255, 77, 109, 0.1);   stroke: var(--sev-high); stroke-width: 2; stroke-dasharray: 4 2; }
+
+/* Teinte de RISQUE appliquée par-dessus le gabarit (priorité au risque) */
+.node[data-risk='HIGH'] .g-alrt,
+.node[data-risk='HIGH'] .g-cust,
+.node[data-risk='HIGH'] .g-acc,
+.node[data-risk='HIGH'] .g-tx,
+.node[data-risk='HIGH'] .g-ben,
+.node[data-risk='HIGH'] .g-dev,
+.node[data-risk='HIGH'] .g-ip,
+.node[data-risk='HIGH'] .g-ctry,
+.node[data-risk='HIGH'] .g-grp { stroke: var(--sev-high); }
+.node[data-risk='MEDIUM'] .g-alrt,
+.node[data-risk='MEDIUM'] .g-cust,
+.node[data-risk='MEDIUM'] .g-acc,
+.node[data-risk='MEDIUM'] .g-tx,
+.node[data-risk='MEDIUM'] .g-ben,
+.node[data-risk='MEDIUM'] .g-dev,
+.node[data-risk='MEDIUM'] .g-ip,
+.node[data-risk='MEDIUM'] .g-ctry,
+.node[data-risk='MEDIUM'] .g-grp { stroke: var(--sev-medium); }
+.node[data-risk='LOW'] .g-alrt,
+.node[data-risk='LOW'] .g-cust,
+.node[data-risk='LOW'] .g-acc,
+.node[data-risk='LOW'] .g-tx,
+.node[data-risk='LOW'] .g-ben,
+.node[data-risk='LOW'] .g-dev,
+.node[data-risk='LOW'] .g-ip,
+.node[data-risk='LOW'] .g-ctry,
+.node[data-risk='LOW'] .g-grp { stroke: var(--sev-low); }
+
+/* Halo des nœuds focus LLM */
+.focus-halo {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 1.5;
+  opacity: 0.55;
+  animation: focus-pulse 1.8s ease-in-out infinite;
+}
+@keyframes focus-pulse {
+  0%, 100% { r: 24; opacity: 0.55; }
+  50% { r: 32; opacity: 0.15; }
+}
+
+/* Anneau : le nœud est le CENTRE de l'investigation.
+   C'est une POSITION dans le graphe, pas un niveau de risque —
+   d'où une couleur neutre (ambre) et pas la couleur HIGH. */
+.investigation-ring {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* ── Tooltip ────────────────────────────────────────────────── */
+.tooltip-g { pointer-events: none; }
+.tooltip-bg {
+  fill: var(--bg-deep);
+  stroke: var(--cyan);
+  stroke-width: 1;
+  opacity: 0.95;
+}
+.tooltip-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--text);
+}
+.tooltip-sub {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  fill: var(--text-dim);
+}
+
+/* ── Légende ────────────────────────────────────────────────── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-dim);
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.legend__title { letter-spacing: 0.12em; }
+.legend__group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sw {
+  display: inline-block;
+  width: 11px; height: 11px;
+  border-radius: 3px;
+  border: 1.5px solid;
+}
+.sw--cust { border-color: var(--cyan); }
+.sw--acc  { border-color: var(--amber); border-radius: 2px; }
+.sw--tx   { border-color: var(--text-dim); transform: rotate(45deg); }
+.sw--ben  { border-color: var(--sev-medium); }
+.sw--dev  { border-color: var(--sev-low); border-radius: 2px; }
+.sw--ip   { border-color: var(--sev-low); border-radius: 50%; }
+.sw--ctry { border-color: var(--text-dim); border-radius: 50%; }
+.sw--alrt { border-color: var(--sev-high); border-radius: 50%; }
+.sw--grp  { border-color: var(--sev-high); border-radius: 2px; border-style: dashed; }
+.dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+}
+.dot--high { background: var(--sev-high); }
+.dot--med  { background: var(--sev-medium); }
+.dot--low  { background: var(--sev-low); }
+
+/* Légende des RELATIONS (traits du graphe) */
+.legend__rel-title { letter-spacing: 0.1em; color: var(--text); }
+.rel {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 2.5px solid;
+}
+.rel--owns   { border-color: var(--cyan); }
+.rel--sent   { border-color: var(--amber); }
+.rel--to     { border-color: var(--sev-medium); }
+.rel--shared { border-color: #d946ef; border-top-width: 3px; border-top-style: dashed; }
+.rel--belongs { border-color: var(--sev-high); border-top-style: dashed; border-top-width: 2px; }
+.rel--geo    { border-color: var(--text-dim); border-top-style: dotted; }
+
+/* Légende de l'anneau « centre d'investigation » */
+.legend__group--note {
+  color: var(--amber);
+  font-size: 9.5px;
+  .ring {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1.5px dashed var(--amber);
+    opacity: 0.85;
+  }
+}
+
+/* ── Preuve d'arête sélectionnée ────────────────────────────── */
+.edge-proof {
+  padding: 12px 14px;
+  background: rgba(53, 224, 216, 0.05);
+  border: 1px solid rgba(53, 224, 216, 0.25);
+  border-radius: var(--radius-sm);
+}
+.edge-proof__type {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--cyan);
+}
+.edge-proof__ev { margin: 0; font-size: 12.5px; color: var(--text); }
+
+/* ── Colonne droite ─────────────────────────────────────────── */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.narrative { padding: 18px; }
+
+/* ── POURQUOI CETTE ALERTE ? (déterministe) ─────────────────── */
+.why { padding: 18px; }
+.why__line {
+  margin: 8px 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.why__factors {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.why__factors li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 11.5px;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 5px;
+}
+.why__code { color: var(--amber); letter-spacing: 0.04em; }
+.why__name { color: var(--text); }
+.why__pts  { font-weight: 700; color: var(--text); }
+.why__w    { color: var(--text-dim); }
+.why__reason { flex-basis: 100%; color: var(--text-dim); font-size: 10.5px; }
+
+/* ── Avis autonome du LLM (llmScore) ────────────────────────── */
+.llm-score {
+  margin: 4px 0 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--text-dim);
+  color: var(--text);
+}
+.llm-score[data-band='low']  { border-left-color: var(--sev-low); }
+.llm-score[data-band='med']  { border-left-color: var(--sev-medium); }
+.llm-score[data-band='high'] { border-left-color: var(--sev-high); }
+.llm-score[data-band='vhigh'] { border-left-color: var(--sev-high); background: rgba(255, 77, 109, 0.06); }
+
+.narr-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-pill {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  &[data-mode='LLM'] {
+    color: var(--cyan);
+    border-color: rgba(53, 224, 216, 0.45);
+    background: rgba(53, 224, 216, 0.08);
+  }
+  &[data-mode='DETERMINISTE'] {
+    color: var(--amber);
+    border-color: rgba(255, 176, 32, 0.45);
+    background: rgba(255, 176, 32, 0.08);
+  }
+}
+
+.mode-badge {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  &[data-mode='LLM'] { color: var(--cyan); border-color: rgba(53, 224, 216, 0.4); }
+  &[data-mode='DETERMINISTE'] { color: var(--amber); border-color: rgba(255, 176, 32, 0.4); }
+}
+
+.narr-conf {
+  margin: 6px 0 10px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+/* Avertissement quand les données sous-jacentes sont incomplètes. */
+.narr-quality {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  border-radius: var(--radius-sm);
+  &[data-quality='PARTIAL'] {
+    color: var(--amber);
+    background: rgba(255, 176, 32, 0.07);
+    border: 1px solid rgba(255, 176, 32, 0.3);
+  }
+  &[data-quality='DEGRADED'] {
+    color: var(--sev-high);
+    background: rgba(255, 77, 109, 0.08);
+    border: 1px solid rgba(255, 77, 109, 0.3);
+  }
+}
+
+/* Badge « centre d'investigation » dans le détail du nœud. */
+.focus-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--amber);
+  border: 1px solid rgba(255, 176, 32, 0.4);
+  border-radius: 999px;
+}
+
+.narr-summary {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.narr-sub {
+  margin: 14px 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--cyan);
+}
+
+.narr-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  li { margin-bottom: 6px; }
+}
+.narr-list--actions { list-style: none; padding-left: 4px; li::before { content: '▸ '; color: var(--amber); } }
+
+.focus-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+.focus-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 5px 10px;
+  color: var(--cyan);
+  background: rgba(53, 224, 216, 0.08);
+  border: 1px solid rgba(53, 224, 216, 0.35);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  &:hover { background: rgba(53, 224, 216, 0.16); }
+  &.is-active { background: var(--cyan); color: #0b0f14; }
+}
+
+/* ── Détail nœud ────────────────────────────────────────────── */
+.node-detail { padding: 18px; }
+.node-detail__title { margin: 6px 0 4px; font-size: 16px; }
+.node-detail__meta { margin: 0 0 12px; font-size: 11px; color: var(--text-dim); }
+
+.risk-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  &[data-risk='HIGH'] { color: var(--sev-high); background: rgba(255, 77, 109, 0.12); }
+  &[data-risk='MEDIUM'] { color: var(--sev-medium); background: rgba(255, 176, 32, 0.12); }
+  &[data-risk='LOW'] { color: var(--sev-low); background: rgba(61, 220, 151, 0.12); }
+}
+
+.meta-list { margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 4px;
+  dt { color: var(--text-dim); margin: 0; }
+  dd { margin: 0; color: var(--text); text-align: right; }
+}
+
+/* ── États ──────────────────────────────────────────────────── */
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error {
+  padding: 14px 18px;
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.08);
+  border: 1px solid rgba(255, 77, 109, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.quick__link {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  &:hover { color: var(--cyan); border-color: var(--cyan); }
+}

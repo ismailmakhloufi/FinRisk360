@@ -1,0 +1,203 @@
+.page__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.kicker {
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--amber);
+}
+
+.page__title {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+/* ── Journal ────────────────────────────────────────── */
+.table-card {
+  overflow: hidden;
+  transition: opacity 0.15s ease;
+}
+
+.table-card.is-loading {
+  opacity: 0.55;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.sentinel-table {
+  width: 100%;
+  background: transparent;
+}
+
+.sentinel-table .mat-mdc-header-row {
+  background: var(--panel-2);
+}
+
+.sentinel-table .mat-mdc-header-cell {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px;
+}
+
+.sentinel-table .mat-mdc-row {
+  transition: background 0.12s ease;
+}
+
+.sentinel-table .mat-mdc-row:hover {
+  background: rgba(255, 176, 32, 0.04);
+}
+
+.sentinel-table .mat-mdc-cell {
+  font-size: 13.5px;
+  color: var(--text);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+  padding: 12px 16px;
+}
+
+.id {
+  color: var(--amber);
+  font-size: 12.5px;
+}
+
+.num {
+  text-align: right;
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.chip {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.amount {
+  color: var(--cyan);
+  font-size: 13.5px;
+}
+
+.cur {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+.country {
+  color: var(--cyan);
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.badge[data-status='COMPLETED'] {
+  color: var(--sev-low);
+  background: rgba(61, 220, 151, 0.08);
+  border-color: rgba(61, 220, 151, 0.3);
+}
+
+.badge[data-status='PENDING'] {
+  color: var(--sev-medium);
+  background: rgba(255, 176, 32, 0.08);
+  border-color: rgba(255, 176, 32, 0.3);
+}
+
+.badge[data-status='HELD'] {
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.08);
+  border-color: rgba(255, 77, 109, 0.3);
+}
+
+.badge[data-status='FAILED'] {
+  color: var(--text-dim);
+  background: rgba(139, 151, 167, 0.08);
+  border-color: rgba(139, 151, 167, 0.3);
+}
+
+.badge[data-status='CANCELLED'] {
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.14);
+  border-color: rgba(255, 77, 109, 0.5);
+}
+
+.error {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.08);
+  border: 1px solid rgba(255, 77, 109, 0.3);
+  border-radius: var(--radius-sm);
+}
+
+.focus-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  border: 1px solid rgba(53, 224, 216, 0.35);
+  background: rgba(53, 224, 216, 0.06);
+  border-radius: var(--radius-sm);
+}
+
+.focus-banner__back {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--panel);
+  background: var(--cyan);
+  border: none;
+  border-radius: 999px;
+  padding: 6px 13px;
+  cursor: pointer;
+}
+
+.focus-banner__back:hover {
+  filter: brightness(1.1);
+}
+
+.empty {
+  padding: 34px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* Paginator : design SENTINEL centralisé dans styles.scss */

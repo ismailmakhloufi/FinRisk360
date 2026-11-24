@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Client #{{ customer.customerId }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card__head">
+    <h2>Dossier complet — {{ customer.firstName }} {{ customer.lastName }}</h2>
+    <span class="count mono">#{{ customer.customerId }}</span>
+  </div>
+
+  <div class="toolbar">
+    <a class="btn btn--ghost" href="{{ url_for('admin') }}">← Tous les clients</a>
+    <form method="post" action="{{ url_for('delete_client', customer_id=customer.customerId) }}"
+          onsubmit="return confirm('Supprimer DEFINITIVEMENT le client #{{ customer.customerId }} et toutes ses donnees chez FinRisk360 (alertes, evaluations, transactions, comptes) ?');">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+      <button type="submit" class="btn btn--danger">SUPPRIMER DEFINITIVEMENT</button>
+    </form>
+  </div>
+
+  {% if sim_user %}
+  <div class="pwd">
+    <span class="field__label">ACCES ESPACE CLIENT</span>
+    <span class="mono">identifiant : {{ sim_user.username }}</span>
+    <span class="dim">(mot de passe defini a la creation — le client peut le changer depuis son espace)</span>
+  </div>
+  {% else %}
+  <div class="pwd pwd--warn">
+    <span class="dim">Aucun compte local : ce client n'a pas ete cree par cette console.</span>
+  </div>
+  {% endif %}
+
+  <!-- Fiche : toute la table customers -->
+  <h3 class="section">FICHE CLIENT <span class="pill pill--{{ customer.status | lower }}">{{ customer.status }}</span></h3>
+  <div class="detail-grid">
+    <div><span class="field__label">PRENOM</span>{{ customer.firstName }}</div>
+    <div><span class="field__label">NOM</span>{{ customer.lastName }}</div>
+    <div><span class="field__label">EMAIL</span>{{ customer.email or '—' }}</div>
+    <div><span class="field__label">TELEPHONE</span>{{ customer.phone or '—' }}</div>
+    <div><span class="field__label">NAISSANCE</span>{{ customer.dateOfBirth or '—' }}</div>
+    <div><span class="field__label">PAYS / VILLE</span>{{ customer.country or '—' }} · {{ customer.city or '—' }}</div>
+    <div><span class="field__label">TYPE</span>{{ customer.customerType }}</div>
+    <div><span class="field__label">INSCRIPTION</span>{{ customer.registrationDate[:10] }}</div>
+  </div>
+
+  <!-- Comptes -->
+  <h3 class="section">COMPTES ({{ accounts | length }})</h3>
+  <p class="dim">Le RIB est l'identifiant a donner a quiconque doit vous envoyer
+     de l'argent : il est unique par compte et se copie en un clic.</p>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Numero</th><th>RIB (TUNISIE)</th><th>Type</th><th>Statut</th><th class="right">Solde</th></tr>
+      </thead>
+      <tbody>
+        {% for a in accounts %}
+        {% set rib = rib_for(a.accountNumber) %}
+        <tr>
+          <td class="mono">{{ a.accountId }}</td>
+          <td class="mono">{{ a.accountNumber }}</td>
+          <td class="mono">
+            <span class="dim">{{ rib }}</span>
+            <button type="button" class="copy" data-copy="{{ rib }}"
+                    title="Copier le RIB" aria-label="Copier le RIB">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+            </button>
+          </td>
+          <td><span class="chip">{{ a.accountType }}</span></td>
+          <td><span class="pill pill--{{ a.status | lower }}">{{ a.status }}</span></td>
+          <td class="right mono strong">{{ '%.2f'|format(a.balance) }} {{ a.currency }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">Aucun compte.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Transactions -->
+  <h3 class="section">TRANSACTIONS ({{ transactions | length }})</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Type</th><th>Compte</th><th>Statut</th><th class="right">Montant</th></tr>
+      </thead>
+      <tbody>
+        {% for t in transactions | sort(attribute='transactionId', reverse=true) %}
+        <tr>
+          <td class="mono">{{ t.transactionId }}</td>
+          <td class="mono">{{ t.transactionDate[:16].replace('T', ' ') }}</td>
+          <td><span class="chip">{{ t.transactionType }}</span></td>
+          <td class="mono">{{ t.accountId }}</td>
+          <td><span class="pill pill--{{ t.status | lower }}">{{ t.status }}</span></td>
+          <td class="right mono strong">{{ '%.2f'|format(t.amount) }} {{ t.currency }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">Aucune transaction.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Evaluations -->
+  <h3 class="section">EVALUATIONS DE RISQUE ({{ evaluations | length }})</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Transaction</th><th>Score</th><th>Decision</th><th>Verdict IA</th></tr>
+      </thead>
+      <tbody>
+        {% for e in evaluations | sort(attribute='assessmentId', reverse=true) %}
+        <tr>
+          <td class="mono">{{ e.assessmentId }}</td>
+          <td class="mono">{{ e.transactionId }}</td>
+          <td class="mono strong">{{ e.riskScore }}</td>
+          <td><span class="chip">{{ e.decision }}</span></td>
+          <td class="dim">{{ e.verdict or '—' }} · confiance {{ e.confidence if e.confidence is not none else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">Aucune evaluation.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Alertes -->
+  <h3 class="section">ALERTES SOUMISES A L'ANALYSTE ({{ alerts | length }})</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Code</th><th>Severite</th><th>Type</th><th>Statut</th><th>Creee</th></tr>
+      </thead>
+      <tbody>
+        {% for a in alerts | sort(attribute='alertId', reverse=true) %}
+        <tr>
+          <td class="mono strong">{{ a.alertCode }}</td>
+          <td><span class="pill pill--{{ a.severity | lower }}">{{ a.severity }}</span></td>
+          <td><span class="chip">{{ a.alertType }}</span></td>
+          <td><span class="pill pill--{{ a.status | lower }}">{{ a.status }}</span></td>
+          <td class="mono dim">{{ a.createdAt[:16].replace('T', ' ') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">Aucune alerte.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="note">
+    Consultation en lecture seule sur FinRisk360 ·
+    <a href="http://localhost:4200/alertes" target="_blank" rel="noopener">voir le cote analyste ↗</a>
+  </p>
+</section>
+{% endblock %}

@@ -1,0 +1,92 @@
+<section class="lab" aria-label="Preuve du score moteur">
+  <header class="lab__head">
+    <p class="kicker mono">LABO DU SCORE · LA PREUVE DU CHIFFRE</p>
+
+    <!-- 1. La formule -->
+    <p class="lab__formula mono" aria-label="Formule du score">
+      <span class="tok tok--sum" title="Somme des contributions">{{ sum() | number: '1.4-4' }}</span>
+      <span class="op">Σ(w×f)</span>
+      <span class="op">×</span>
+      <span class="tok">100</span>
+      @if (bonusActive()) {
+        <span class="op">×</span>
+        <span class="tok tok--bonus" title="Bonus de cumul : ≥3 règles déclenchées">1.20</span>
+      } @else {
+        <span class="op">×</span>
+        <span class="tok tok--off">1.00</span>
+      }
+      <span class="op">=</span>
+      <span class="tok tok--score">{{ formulaScore() | number: '1.2-2' }}</span>
+    </p>
+
+    <p class="lab__hint mono">
+      {{ triggeredCount() }} règle(s) déclenchée(s) sur {{ totalCount() }} évaluées
+      · bonus ×1.20 dès 3 · plafond 100
+      @if (abs(gap()) > 0.005) {
+        <span class="lab__gap"> · écart score persisté {{ gap() > 0 ? '+' : '' }}{{ gap() | number: '1.2-2' }}</span>
+      } @else {
+        <span class="lab__ok"> · recalcul identique au moteur ✓</span>
+      }
+    </p>
+  </header>
+
+  <!-- 2. Le waterfall -->
+  @if (triggered().length) {
+    <ul class="wf">
+      @for (r of triggered(); track r.factor.ruleId; let i = $index) {
+        <li [class.is-top]="i === 0">
+          <div class="wf__top">
+            <span class="wf__code mono">{{ r.factor.ruleCode }}</span>
+            <span class="wf__pts mono">+{{ r.points | number: '1.2-2' }} pts</span>
+          </div>
+          <div class="wf__bar">
+            <span class="wf__fill" [style.width.%]="r.pct"></span>
+          </div>
+          <span class="wf__reason">
+            {{ r.factor.reason }}
+            <span class="wf__math mono">w {{ r.factor.weight | number: '1.2-2' }} × f {{ r.factor.factorScore | number: '1.1-1' }}</span>
+          </span>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="lab__zero mono">Aucune règle déclenchée — score 0, dossier vierge.</p>
+  }
+
+  <!-- 3. Leave-one-out : l'impact marginal de chaque indice -->
+  @if (loo().length > 1) {
+    <div class="loo">
+      <p class="kicker mono">TEST DE SENSIBILITÉ · SANS CETTE RÈGLE, LE SCORE SERAIT…</p>
+      <div class="loo__chips">
+        @for (r of loo(); track r.ruleCode) {
+          <span class="loo-chip mono" [class.is-major]="r.delta >= 10">
+            <b>{{ r.ruleCode }}</b>
+            → {{ r.without | number: '1.2-2' }}
+            <i>−{{ r.delta | number: '1.2-2' }}</i>
+          </span>
+        }
+      </div>
+      @if (dominant(); as d) {
+        <p class="loo__dom">
+          <strong>{{ d.factor.ruleCode }}</strong> est l'indice moteur du dossier
+          (+{{ (d.contribution * 100) | number: '1.2-2' }} pts).
+        </p>
+      }
+    </div>
+  }
+
+  <!-- 4. Ce qui n'a PAS joué : visible, pas silencieux -->
+  @if (neutralized().length) {
+    <details class="neutral">
+      <summary class="mono">Règles non jouées : {{ neutralized().length }} (aucun point)</summary>
+      <ul>
+        @for (n of neutralized(); track n.factor.ruleId) {
+          <li>
+            <span class="n-code mono">{{ n.factor.ruleCode }}</span>
+            <span class="n-reason">{{ n.factor.reason }}</span>
+          </li>
+        }
+      </ul>
+    </details>
+  }
+</section>

@@ -1,0 +1,74 @@
+server:
+  address: ${SERVER_BIND_ADDRESS:127.0.0.1}
+  port: 8084
+
+spring:
+  application:
+    name: risk-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finrisk
+    username: finrisk
+    password: ${POSTGRES_PASSWORD}
+
+  jpa:
+    # Le schema SQL (postgres/02-schema.sql) est la source de verite :
+    # Hibernate ne cree rien, il VERIFIE seulement que les entites correspondent.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  jackson:
+    time-zone: UTC
+
+# Appels SORTANTS vers les autres services (lecture seule, jamais de SQL chez eux).
+clients:
+  transaction:
+    base-url: http://localhost:8083
+  account:
+    base-url: http://localhost:8082
+  # Creation d'alerte : TOUTE transaction evaluee en laisse une, meme anodine,
+  # faute de quoi un analyste n'aurait aucune trace a examiner.
+  alert:
+    base-url: http://localhost:8085
+
+# Parametres du moteur de risque.
+risk:
+  timezone: Africa/Tunis        # regle d'heure et profil : en HEURE LOCALE du client (pas UTC)
+  stats-window-days: 90         # fenetre du Feature Engine (== risk_profiles.stats_window_days)
+  engine-version: "v1"          # reporte dans risk_assessments.engine_version
+  structuring:
+    # RULE-012 : fractionnement sous le seuil de declaration.
+    # small-amount-max = plafond du "petit montant" (miroir du seuil RULE-001).
+    # min-cumul        = plancher de somme, sans lequel N micro-virements
+    #                    declencheraient la regle a vide.
+    small-amount-max: 5000
+    min-cumul: 500
+  decisions:
+    approved-max: 29            # score <= 29 -> APPROVED      (risk_level LOW)
+    monitoring-max: 59          # score <= 59 -> MONITORING    (risk_level MEDIUM)
+    review-max: 84              # score <= 84 -> PENDING_REVIEW (risk_level HIGH)
+                                # au-dela     -> HOLD          (risk_level CRITICAL)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    tn.finrisk: INFO
+    org.hibernate.SQL: DEBUG

@@ -1,0 +1,173 @@
+erDiagram
+    customers ||--o{ accounts : "possede"
+    customers ||--|| risk_profiles : "profil"
+    accounts ||--o{ transactions : "contient"
+    merchants ||--o{ transactions : "concerne"
+    transactions ||--o{ risk_assessments : "evalue"
+    risk_assessments ||--o{ risk_factors : "detaille"
+    risk_rules ||--o{ risk_factors : "declenche"
+    risk_assessments ||--o{ alerts : "genere"
+    alerts ||--o| cases : "devient"
+    cases ||--o{ case_comments : "documente"
+    users ||--o{ alerts : "assigne"
+    users ||--o{ cases : "gere"
+    users ||--o{ case_comments : "ecrit"
+    users ||--o{ audit_logs : "trace"
+
+    customers {
+        BIGSERIAL customer_id PK
+        VARCHAR first_name "NOT NULL"
+        VARCHAR last_name "NOT NULL"
+        VARCHAR email "UNIQUE"
+        VARCHAR phone
+        DATE date_of_birth
+        CHAR country "ISO-3166"
+        VARCHAR city
+        VARCHAR customer_type "CHECK"
+        TIMESTAMPTZ registration_date "DEFAULT now()"
+        VARCHAR status "CHECK"
+    }
+
+    accounts {
+        BIGSERIAL account_id PK
+        BIGINT customer_id FK
+        VARCHAR account_number "UNIQUE"
+        VARCHAR account_type "CHECK"
+        CHAR currency "ISO-4217"
+        DECIMAL balance "DECIMAL(15,2)"
+        DATE opening_date
+        VARCHAR status "CHECK"
+    }
+
+    merchants {
+        BIGSERIAL merchant_id PK
+        VARCHAR merchant_name "NOT NULL"
+        VARCHAR merchant_category
+        CHAR country "ISO-3166"
+        VARCHAR city
+        VARCHAR status "CHECK"
+        TIMESTAMPTZ created_at "RULE-005"
+    }
+
+    transactions {
+        BIGSERIAL transaction_id PK
+        BIGINT account_id FK
+        BIGINT merchant_id FK
+        DECIMAL amount "NOT NULL"
+        CHAR currency "ISO-4217"
+        VARCHAR transaction_type "CHECK"
+        CHAR country "NOT NULL"
+        TIMESTAMPTZ transaction_date "NOT NULL"
+        VARCHAR channel
+        VARCHAR ip_address
+        VARCHAR device_id
+        VARCHAR beneficiary_name "libelle, pas une cle"
+        VARCHAR status "CHECK"
+        TIMESTAMPTZ created_at "DEFAULT now()"
+    }
+
+    risk_profiles {
+        BIGSERIAL profile_id PK
+        BIGINT customer_id FK "UNIQUE - 1:1"
+        DECIMAL avg_transaction_amount
+        DECIMAL median_transaction_amount
+        DECIMAL max_transaction_amount
+        DECIMAL p95_amount
+        DECIMAL p99_amount
+        DECIMAL transactions_per_day
+        JSONB feature_snapshot
+        CHAR usual_country
+        SMALLINT usual_transaction_hour
+        INT usual_merchant_count
+        INT stats_window_days
+        VARCHAR profile_risk_level
+        TIMESTAMPTZ last_updated
+    }
+
+    risk_assessments {
+        BIGSERIAL assessment_id PK
+        BIGINT transaction_id FK
+        DECIMAL risk_score "0 - 100"
+        VARCHAR risk_level "CHECK"
+        VARCHAR decision "CHECK"
+        TIMESTAMPTZ assessed_at "DEFAULT now()"
+        VARCHAR engine_version
+    }
+
+    risk_rules {
+        BIGSERIAL rule_id PK
+        VARCHAR rule_code "UNIQUE - RULE-001"
+        VARCHAR rule_name
+        VARCHAR risk_category "CHECK"
+        VARCHAR comparison_operator
+        DECIMAL threshold_value
+        DECIMAL weight
+        VARCHAR severity "CHECK"
+        BOOLEAN enabled
+        TIMESTAMPTZ created_at
+    }
+
+    risk_factors {
+        BIGSERIAL factor_id PK
+        BIGINT assessment_id FK
+        BIGINT rule_id FK "NULL si facteur statistique"
+        VARCHAR factor_type "CHECK"
+        DECIMAL factor_score
+        DECIMAL weight "snapshot"
+        TEXT reason "alimente l'IA"
+        TIMESTAMPTZ created_at
+    }
+
+    alerts {
+        BIGSERIAL alert_id PK
+        BIGINT assessment_id FK
+        VARCHAR alert_code "UNIQUE NOT NULL"
+        VARCHAR alert_type
+        VARCHAR severity "CHECK"
+        VARCHAR status "CHECK"
+        BIGINT assigned_to FK "analyste"
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ resolved_at
+    }
+
+    cases {
+        BIGSERIAL case_id PK
+        BIGINT alert_id FK "UNIQUE - 1:1"
+        BIGINT assigned_to FK
+        VARCHAR status "CHECK"
+        VARCHAR priority "CHECK"
+        VARCHAR investigation_result
+        TIMESTAMPTZ opened_at
+        TIMESTAMPTZ closed_at
+    }
+
+    case_comments {
+        BIGSERIAL comment_id PK
+        BIGINT case_id FK
+        BIGINT user_id FK
+        TEXT content "NOT NULL"
+        VARCHAR comment_type
+        TIMESTAMPTZ created_at
+    }
+
+    users {
+        BIGSERIAL user_id PK
+        VARCHAR username "UNIQUE"
+        VARCHAR email "UNIQUE"
+        VARCHAR password_hash "NOT NULL"
+        VARCHAR role "CHECK"
+        BOOLEAN is_active
+        TIMESTAMPTZ created_at
+    }
+
+    audit_logs {
+        BIGSERIAL audit_id PK
+        BIGINT user_id FK
+        VARCHAR action "NOT NULL"
+        VARCHAR entity_type "NOT NULL"
+        BIGINT entity_id "polymorphe"
+        TEXT old_value
+        TEXT new_value
+        TIMESTAMPTZ created_at "ex-timestamp"
+        VARCHAR ip_address
+    }

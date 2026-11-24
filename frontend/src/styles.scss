@@ -1,0 +1,298 @@
+@use '@angular/material' as mat;
+
+/* ── Thème Material (sous le capot) : dark + ambre primaire + cyan tertiaire ── */
+html {
+  @include mat.theme((
+    color: (
+      theme-type: dark,
+      primary: mat.$orange-palette,
+      tertiary: mat.$cyan-palette,
+    ),
+    density: 0,
+  ));
+}
+
+/* ── Jetons d'identité SENTINEL : la seule source de couleurs pour nos écrans ── */
+:root {
+  --bg: #0b0f14;
+  --bg-deep: #070a0e;
+  --panel: #121821;
+  --panel-2: #1a2230;
+  --line: rgba(148, 163, 184, 0.12);
+  --text: #e6edf3;
+  --text-dim: #8b97a7;
+
+  --amber: #ffb020;
+  --amber-soft: rgba(255, 176, 32, 0.1);
+  --cyan: #35e0d8;
+
+  --sev-low: #3ddc97;
+  --sev-medium: #ffb020;
+  --sev-high: #ff4d6d;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+
+  --font-title: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* halo discret : ambre en haut à droite, cyan en bas à gauche */
+  background-image:
+    radial-gradient(1100px 560px at 88% -12%, rgba(255, 176, 32, 0.055), transparent 62%),
+    radial-gradient(900px 520px at -12% 112%, rgba(53, 224, 216, 0.045), transparent 58%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-title);
+  letter-spacing: -0.01em;
+}
+
+/* chiffres tabulaires partout où ça compte (scores, montants, ids) */
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* ── Badge de STATUT partagé (alertes ET cases) : une seule source ── */
+.st-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.st-badge.big {
+  font-size: 10.5px;
+  padding: 4px 10px;
+}
+
+/* Statuts d'ALERTE */
+.st-badge[data-status='OPEN'] {
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.07);
+  border-color: rgba(255, 77, 109, 0.25);
+}
+.st-badge[data-status='ACKNOWLEDGED'] {
+  color: var(--cyan);
+  background: rgba(53, 224, 216, 0.07);
+  border-color: rgba(53, 224, 216, 0.25);
+}
+.st-badge[data-status='IN_PROGRESS'] {
+  color: var(--sev-medium);
+  background: rgba(255, 176, 32, 0.07);
+  border-color: rgba(255, 176, 32, 0.25);
+}
+/* ABSORBEE par un groupe : masquee de la file, teinte neutre « archive » */
+.st-badge[data-status='ABSORBED'] {
+  color: var(--text-dim);
+  background: rgba(139, 151, 167, 0.07);
+  border-color: rgba(139, 151, 167, 0.3);
+  border-style: dashed;
+}
+.st-badge[data-status='RESOLVED'] {
+  color: var(--sev-low);
+  background: rgba(61, 220, 151, 0.07);
+  border-color: rgba(61, 220, 151, 0.25);
+}
+
+/* Statuts de CASE (FALSE_POSITIVE = fausse alarme, donc vert « rien à craindre ») */
+.st-badge[data-status='FALSE_POSITIVE'] {
+  color: var(--sev-low);
+  background: rgba(61, 220, 151, 0.07);
+  border-color: rgba(61, 220, 151, 0.25);
+}
+.st-badge[data-status='CLOSED'] {
+  color: var(--text-dim);
+  background: rgba(139, 151, 167, 0.07);
+  border-color: rgba(139, 151, 167, 0.25);
+}
+.st-badge[data-status='UNDER_REVIEW'] {
+  color: var(--sev-medium);
+  background: rgba(255, 176, 32, 0.07);
+  border-color: rgba(255, 176, 32, 0.25);
+}
+.st-badge[data-status='CONFIRMED'] {
+  color: var(--sev-high);
+  background: rgba(255, 77, 109, 0.1);
+  border-color: rgba(255, 77, 109, 0.35);
+}
+
+/* ── Bandeau « dossier d'enquête rattaché » (page Alertes) ─────────── */
+.case-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+.case-strip[data-status='CONFIRMED'] { border-left-color: var(--sev-high); }
+.case-strip[data-status='CLOSED'],
+.case-strip[data-status='FALSE_POSITIVE'] { border-left-color: var(--text-dim); }
+.case-strip__id { color: var(--amber); font-weight: 600; }
+.case-strip__prio {
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.case-strip__arb { color: var(--text-dim); }
+.case-strip__arb strong { color: var(--cyan); }
+.case-strip__arb.dim { font-style: italic; }
+.case-strip__link {
+  margin-left: auto;
+  color: var(--cyan);
+  text-decoration: none;
+  font-weight: 600;
+}
+.case-strip__link:hover { text-decoration: underline; }
+
+::selection {
+  background: rgba(255, 176, 32, 0.28);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3547;
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4a63;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Icônes : mat-icon -> Material Symbols (police locale, ligatures) ── */
+mat-icon,
+.material-icons {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  display: inline-block;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Paginator SENTINEL (centralisé — Clients, Comptes, Transactions,
+      Alertes, Cas, Audit) : sombre, mono, accents ambre. Les libellés
+      viennent de provideFrenchPaginator (app.config.ts). ─────────── */
+.sentinel-paginator {
+  border-top: 1px solid var(--line);
+  background: transparent;
+  padding: 0 10px 0 14px;
+
+  --mat-paginator-container-background-color: transparent;
+  --mat-paginator-container-text-color: var(--text-dim);
+  --mat-paginator-icon-color: var(--text-dim);
+  --mat-paginator-button-state-layer-color: var(--amber-soft);
+  --mat-paginator-button-focus-color: rgba(255, 176, 32, 0.22);
+  --mat-paginator-select-value-text-color: var(--text);
+  --mat-paginator-select-trigger-text-color: var(--amber);
+  --mat-paginator-container-height: 52px;
+
+  .mat-mdc-paginator-container {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .mat-mdc-paginator-range-label,
+  .mat-mdc-paginator-page-size-label {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin: 0;
+    min-width: 0;
+  }
+
+  /* (sélecteur « éléments par page » supprimé via hidePageSize) */
+
+  /* flèches de pagination : gris par défaut, ambre au survol */
+  .mat-mdc-icon-button {
+    color: var(--text-dim);
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+  .mat-mdc-icon-button:hover {
+    color: var(--amber);
+  }
+  .mat-mdc-icon-button:disabled {
+    color: var(--text-dim);
+    opacity: 0.25;
+  }
+}
+
+/* Panneau déroulant des selects Material (overlay au niveau du body) */
+.mat-mdc-select-panel {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.mat-mdc-option {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  min-height: 34px;
+  border-radius: 6px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+/* Survol : ambre très doux */
+.mat-mdc-option:hover {
+  background: rgba(255, 176, 32, 0.1);
+  color: var(--text);
+}
+/* Option sélectionnée / active : fond ambre net (tokens M3 en priorité,
+   + filet !important pour écraser le gris Material par défaut) */
+.mat-mdc-select-panel {
+  --mat-select-option-selected-state-background-color: var(--amber-soft) !important;
+  --mat-select-option-selected-state-label-text-color: var(--amber) !important;
+  --mat-option-hover-state-background-color: rgba(255, 176, 32, 0.1);
+  --mat-option-focus-state-background-color: rgba(255, 176, 32, 0.18);
+}
+.mat-mdc-option.mat-mdc-option-active {
+  color: var(--amber);
+  font-weight: 600;
+}

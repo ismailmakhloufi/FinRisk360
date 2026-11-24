@@ -1,0 +1,157 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">AGENT NOCTURNE · AUTOMATISATION M4</p>
+      <h2 class="page__title">
+        Rapport de nuit <span class="page__count mono">{{ total() }}</span>
+      </h2>
+    </div>
+
+    <button class="run-btn mono" (click)="runNow()" [disabled]="running()"
+            [attr.title]="running() ? 'Balayage en cours…' : 'Balayage manuel disponible dans la fenêtre horaire'">
+      <mat-icon>{{ running() ? 'progress_activity' : 'bedtime' }}</mat-icon>
+      {{ running() ? 'BALAYAGE…' : 'LANCER UN BALAYAGE' }}
+    </button>
+  </header>
+
+  @if (error()) {
+    <div class="error mono">⚠ {{ error() }}</div>
+  }
+
+  <!-- Bandeau d'état : activation, fenêtre, dernière exécution, dernier bilan -->
+  @if (status(); as s) {
+    <div class="status-strip">
+      <span class="status-chip" [class.status-chip--off]="!s.enabled" [class.status-chip--on]="s.enabled">
+        <span class="dot"></span>
+        {{ s.enabled ? 'AGENT ACTIF' : 'AGENT DÉSACTIVÉ' }}
+      </span>
+      <span class="status-chip mono">FENÊTRE {{ s.startHour }}H00 → {{ s.endHour }}H00</span>
+      <span class="status-chip" [class.status-chip--off]="!s.autoValidationEnabled"
+            [class.status-chip--on]="s.autoValidationEnabled">
+        {{ s.autoValidationEnabled ? 'VALIDATION AUTOMATIQUE ACTIVÉE' : 'VALIDATION AUTOMATIQUE SUSPENDUE' }}
+      </span>
+      <span class="status-chip" [class.status-chip--in]="s.inWindowNow" [class.status-chip--out]="!s.inWindowNow">
+        {{ s.inWindowNow ? 'DANS LA FENÊTRE' : 'HORS FENÊTRE' }}
+      </span>
+      <span class="status-chip mono dim">
+        DERNIÈRE EXÉCUTION : {{ s.lastRunAt ? (s.lastRunAt | date: 'dd/MM/yyyy HH:mm') : '—' }}
+      </span>
+      @if (lastRun(); as run) {
+        <span class="status-chip status-chip--bilan mono">
+          {{ run.scanned }} EXAMINÉES · {{ run.validated }} VALIDÉES ·
+          {{ run.deferred }} LAISSÉES · {{ run.skipped }} IGNORÉES
+        </span>
+      }
+    </div>
+  }
+
+  <p class="rule-hint mono">
+    Matrice hybride : seuls les cas <strong>FAIBLE/MOYEN + IA NORMAL</strong> sont éligibles
+    à une validation automatique si elle est activée. Aucun refus automatique ; les cas critiques restent à l'analyste.
+  </p>
+
+  <div class="panel table-card" [class.is-loading]="loading()">
+    <div class="table-scroll">
+      <table mat-table [dataSource]="rows()" class="sentinel-table">
+
+        <ng-container matColumnDef="decisionId">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let d" class="mono id">#{{ d.decisionId }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="transaction">
+          <th mat-header-cell *matHeaderCellDef>Transaction</th>
+          <td mat-cell *matCellDef="let d">
+            <!-- Vue de la transaction elle-meme (Journal cible ?tx=) -->
+            <a class="tx-link mono" [routerLink]="['/transactions']"
+               [queryParams]="{ tx: d.transactionId }"
+               title="Voir la transaction #{{ d.transactionId }} au Journal">
+              TX #{{ d.transactionId }} →
+            </a>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef>Montant</th>
+          <td mat-cell *matCellDef="let d" class="mono">{{ d.amount | number: '1.2-2' }} TND</td>
+        </ng-container>
+
+        <ng-container matColumnDef="moteur">
+          <th mat-header-cell *matHeaderCellDef>Moteur</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="chip mono">{{ d.riskLevel | fr: '—' }} {{ d.riskScore ? '(' + (d.riskScore | number: '1.0-0') + ')' : '' }}</span>
+            <span class="dim mono engine">{{ d.engineDecision | fr }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="ia">
+          <th mat-header-cell *matHeaderCellDef>Avis IA</th>
+          <td mat-cell *matCellDef="let d" class="mono">
+            @if (d.aiVerdict; as verdict) {
+              <span class="verdict">{{ verdict | fr }}</span>
+              <span class="dim conf">{{ d.aiConfidence != null ? (d.aiConfidence * 100 | number: '1.0-0') + '%' : '' }}</span>
+            } @else {
+              <span class="dim">indisponible</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef>Action</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="action" [class.action--ok]="d.agentAction === 'VALIDATED'"
+                  [class.action--left]="d.agentAction === 'LEFT_PENDING'">
+              {{ d.agentAction | fr: '—' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="reason">
+          <th mat-header-cell *matHeaderCellDef>Motif</th>
+          <td mat-cell *matCellDef="let d" class="reason">{{ d.agentReason }}</td>
+        </ng-container>
+
+        <!-- L'acces : c'est LE point du rapport — la ligne dit « laissee
+             a l'analyste », encore faut-il pouvoir ouvrir l'alerte. -->
+        <ng-container matColumnDef="acces">
+          <th mat-header-cell *matHeaderCellDef>Traiter</th>
+          <td mat-cell *matCellDef="let d">
+            @if (d.alertId; as alertId) {
+              <a class="open-link mono" [routerLink]="['/alertes']"
+                 [queryParams]="{ alert: alertId }"
+                 title="Ouvrir l'alerte #{{ alertId }} dans la file d'investigation">
+                OUVRIR L'ALERTE #{{ alertId }} →
+              </a>
+            } @else {
+              <span class="dim mono">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="runAt">
+          <th mat-header-cell *matHeaderCellDef>Quand</th>
+          <td mat-cell *matCellDef="let d" class="mono dim">{{ d.runAt | date: 'dd/MM HH:mm' }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+      </table>
+    </div>
+
+    @if (!loading() && !error() && rows().length === 0) {
+      <div class="empty">
+        Aucune décision — l'agent n'a encore rien balayé cette nuit.
+      </div>
+    }
+
+    <mat-paginator
+      class="sentinel-paginator"
+      [length]="total()"
+      [pageIndex]="page()"
+      [pageSize]="25"
+      hidePageSize
+      (page)="onPage($event)"
+      showFirstLastButtons
+      aria-label="Pagination du rapport de nuit" />
+  </div>
+</section>

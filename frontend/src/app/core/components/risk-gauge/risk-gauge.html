@@ -1,0 +1,10 @@
+<svg class="gauge" viewBox="0 0 200 124" role="img" [attr.aria-label]="'Score de risque ' + score() + ' sur 100'">
+  <path class="gauge__track" d="M20 100 A80 80 0 0 1 180 100" />
+  <path
+    class="gauge__value"
+    [attr.data-level]="level()"
+    [attr.style]="'stroke-dashoffset: ' + offset"
+    d="M20 100 A80 80 0 0 1 180 100" />
+  <text class="gauge__score" x="100" y="88">{{ score() | number: '1.0-0' }}</text>
+  <text class="gauge__level" x="100" y="116" [attr.data-level]="level()">{{ level() | fr }}</text>
+</svg>

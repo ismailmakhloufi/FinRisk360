@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Mon espace marchand{% endblock %}
+
+{% block content %}
+{% if merchant %}
+<section class="card">
+  <div class="card__head">
+    <h2>{{ merchant.merchantName }}</h2>
+    <span class="count mono">marchand {{ merchant.merchantId }}</span>
+  </div>
+
+  <div class="detail-grid">
+    <div><span class="field__label">CATEGORIE</span>{{ merchant.merchantCategory or '—' }}</div>
+    <div><span class="field__label">PAYS / VILLE</span>{{ merchant.country or '—' }} · {{ merchant.city or '—' }}</div>
+    <div><span class="field__label">STATUT</span><span class="pill pill--{{ merchant.status | lower }}">{{ merchant.status }}</span></div>
+    <div><span class="field__label">CREATION</span>{{ merchant.createdAt[:10] if merchant.createdAt else '—' }}</div>
+  </div>
+
+  <h3 class="section">TRANSACTIONS VERS MOI ({{ transactions | length }})</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Type</th><th>Statut</th><th class="right">Montant</th></tr>
+      </thead>
+      <tbody>
+        {% for t in transactions | sort(attribute='transactionId', reverse=true) %}
+        <tr>
+          <td class="mono">{{ t.transactionId }}</td>
+          <td class="mono">{{ t.transactionDate[:16].replace('T', ' ') }}</td>
+          <td><span class="chip">{{ t.transactionType }}</span></td>
+          <td><span class="pill pill--{{ t.status | lower }}">{{ t.status }}</span></td>
+          <td class="right mono strong">{{ '%.2f'|format(t.amount) }} {{ t.currency }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty">Aucune transaction.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="section">MON MOT DE PASSE</h3>
+  <form class="form form--pwd" method="post" action="{{ url_for('change_merchant_password') }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+    <label class="field">
+      <span class="field__label">MOT DE PASSE ACTUEL</span>
+      <input name="currentPassword" type="password" required autocomplete="current-password" />
+    </label>
+    <label class="field">
+      <span class="field__label">NOUVEAU MOT DE PASSE (6+ caracteres)</span>
+      <input name="newPassword" type="password" required minlength="12" autocomplete="new-password" />
+    </label>
+    <div class="ops">
+      <button type="submit" class="btn btn--primary">CHANGER</button>
+    </div>
+  </form>
+</section>
+{% else %}
+<section class="card card--narrow">
+  <p class="empty">Dossier indisponible — l'API FinRisk360 est peut-etre arretee.</p>
+</section>
+{% endif %}
+{% endblock %}

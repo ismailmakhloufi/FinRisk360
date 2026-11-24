@@ -1,0 +1,466 @@
+<section class="page const-page">
+  <header class="page__head">
+    <div>
+      <h2 class="page__title">
+        Constellation
+        @if (data(); as d) {
+          <span class="page__count mono">{{ d.alertCode }}</span>
+        }
+      </h2>
+    </div>
+    <nav class="quick">
+      @if (data(); as d) {
+        <span class="mode-badge mono" [attr.data-mode]="d.mode">
+          {{ d.mode === 'LLM' ? 'LECTURE IA · LLAMA' : 'LECTURE DÉTERMINISTE' }}
+        </span>
+      }
+      <button type="button" class="quick__link mono" (click)="back()">◂ RETOUR ALERTES</button>
+    </nav>
+  </header>
+
+  @if (error(); as e) {
+    <div class="error mono">⚠ {{ e }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state mono">
+      <span class="spinner"></span>
+      CROISEMENT DES RÉSEAUX · CLIENTS · COMPTES · TRANSACTIONS · LLM…
+    </div>
+  }
+
+  @if (data(); as d) {
+    <!-- ── Barre de stats ─────────────────────────────────────── -->
+    <div class="const-stats mono">
+      <span><strong>{{ nodesView().length }}</strong> entités affichées</span>
+      <span><strong>{{ edgesView().length }}</strong> relations affichées</span>
+      <span><strong>{{ linkedAccounts().size }}</strong> comptes liés dans le graphe</span>
+      <span class="dim">généré le {{ d.generatedAt | date: 'dd/MM HH:mm:ss' }}</span>
+    </div>
+
+    <!-- Le bornage est DÉCLARÉ, jamais caché. -->
+    @if (d.truncated) {
+      <div class="const-trunc mono">
+        {{ d.hiddenSharedAccounts }} compte(s) lié(s) supplémentaire(s) détecté(s) au-delà de la limite d’affichage.
+      </div>
+    }
+
+    <div class="const-grid">
+      <!-- ── Graphe ────────────────────────────────────────────── -->
+      <div class="panel graph-panel">
+        <div class="graph-head">
+          <h3 class="panel__title mono">GRAPHE D'INVESTIGATION</h3>
+          <div class="graph-tools mono">
+            <button type="button" class="tool-btn" aria-label="Zoom arrière" (click)="zoom(0.8)">−</button>
+            <button type="button" class="tool-btn" aria-label="Zoom avant" (click)="zoom(1.25)">+</button>
+            <button type="button" class="tool-btn" (click)="onBackgroundDblClick()">Recentrer</button>
+          </div>
+        </div>
+        <div class="depth-controls" role="group" aria-label="Profondeur du graphe">
+          @for (level of levels; track level.id) {
+            <button type="button" [attr.aria-pressed]="depth() === level.id" (click)="setDepth(level.id)">
+              {{ level.label }}
+            </button>
+          }
+        </div>
+        <p class="depth-description">{{ graphDescription() }}</p>
+        @if (depth() === 'network' && !linkedAccounts().size) {
+          <p class="depth-description">Aucun autre compte lié dans les transactions examinées.</p>
+        }
+
+        @if (transaction(); as tx) {
+          <div class="flow-summary" aria-label="Trajet de l’opération">
+            <div><span>Compte émetteur</span><strong>{{ sender()?.label ?? 'Non renseigné' }}</strong></div>
+            <div><span>Opération</span><strong>{{ tx.label }}</strong></div>
+            <div><span>Bénéficiaire</span><strong>{{ beneficiary()?.label ?? 'Non renseigné' }}</strong></div>
+          </div>
+        }
+
+        <svg
+          class="graph-svg"
+          [attr.viewBox]="'0 0 900 ' + graphHeight()"
+          [style.aspect-ratio]="'900 / ' + graphHeight()"
+          (wheel)="onWheel($event)"
+          (pointerdown)="onPointerDown($event)"
+          (pointermove)="onPointerMove($event)"
+          (pointerup)="onPointerUp()"
+          (pointercancel)="onPointerUp()"
+          (dblclick)="onBackgroundDblClick()"
+          role="group"
+          aria-label="Graphe d'investigation des entités liées à l'alerte">
+          <defs>
+            <!-- flèches de direction : qui paie qui (OWNS, SENT, TO) -->
+            <marker id="arrow-owns" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="arrow arrow--owns" />
+            </marker>
+            <marker id="arrow-sent" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="arrow arrow--sent" />
+            </marker>
+            <marker id="arrow-to" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="arrow arrow--to" />
+            </marker>
+          </defs>
+          <g [attr.transform]="transform()">
+            @if (transaction()) {
+              <rect class="graph-zone" x="19" y="153" width="862" height="125" rx="12" />
+              <text class="graph-zone-label mono" x="40" y="176">TRAJET DE L’OPÉRATION</text>
+            }
+            @if (depth() !== 'operation') {
+              <rect class="graph-zone graph-zone--context" x="19" y="317" width="862"
+                    [attr.height]="networkTop() - 350" rx="12" />
+              <text class="graph-zone-label mono" x="40" y="341">COMPTES ET INDICES DE CONTEXTE</text>
+            }
+            @if (depth() === 'network' && networkAccounts().length) {
+              <rect class="graph-zone graph-zone--network" x="19" [attr.y]="networkTop()"
+                    width="862" [attr.height]="graphHeight() - networkTop() - 14" rx="12" />
+              <text class="graph-zone-label mono" x="40" [attr.y]="networkTop() + 26">COMPTES LIÉS PAR UN INDICE COMMUN</text>
+            }
+            <!-- arêtes -->
+            @for (e of edgesView(); track e.id) {
+              @if (pos(e.source); as s) {
+                @if (pos(e.target); as t) {
+                  @let line = edgeLine(e);
+                  <line
+                    class="edge"
+                    [attr.data-type]="e.type"
+                    [class.is-dimmed]="isEdgeDimmed(e.id)"
+                    [class.is-active]="isEdgeActive(e.id)"
+                    [class.is-selected]="selectedEdge()?.id === e.id"
+                    [attr.x1]="line.x1"
+                    [attr.y1]="line.y1"
+                    [attr.x2]="line.x2"
+                    [attr.y2]="line.y2"
+                    [attr.stroke-width]="1 + e.weight * 0.5"
+                    [attr.marker-end]="arrowFor(e.type)"
+                    tabindex="0"
+                    role="button"
+                    [attr.aria-label]="e.label + ' : ' + s.label + ' et ' + t.label"
+                    (keydown.enter)="onEdgeClick(e)"
+                    (keydown.space)="onEdgeClick(e); $event.preventDefault()"
+                    (click)="onEdgeClick(e); $event.stopPropagation()">
+                    <title>{{ e.label | fr }} — {{ e.evidence }}</title>
+                  </line>
+                  <!-- preuve symétrique : label PERMANENT (partage / appartenance) -->
+                  @if (isProofEdge(e.type)) {
+                    <text
+                      class="edge-tag mono"
+                      [attr.x]="(line.x1 + line.x2) / 2"
+                      [attr.y]="(line.y1 + line.y2) / 2 - 5">{{ e.label | fr }}</text>
+                  }
+                }
+              }
+            }
+            <!-- nœuds -->
+            @for (n of nodesView(); track n.id) {
+              <g
+                class="node"
+                [attr.data-risk]="n.risk"
+                [class.is-dimmed]="isDimmed(n.id)"
+                [class.is-focus]="isFocusNode(n.id)"
+                [class.is-investigation]="n.investigationFocus"
+                [class.is-selected]="selected()?.id === n.id"
+                tabindex="0"
+                role="button"
+                [attr.aria-label]="typeLabel(n.type) + ' ' + n.label"
+                (keydown.enter)="onNodeClick(n)"
+                (keydown.space)="onNodeClick(n); $event.preventDefault()"
+                (mouseenter)="onNodeEnter(n)"
+                (mouseleave)="onNodeLeave()"
+                (click)="onNodeClick(n); $event.stopPropagation()">
+                <title>{{ typeLabel(n.type) }} — {{ n.label }} ({{ n.risk | fr }}){{ n.investigationFocus ? ' · centre d\u2019investigation' : '' }}</title>
+                <!-- anneau : nœud CENTRE d'investigation (position, pas risque) -->
+                @if (n.investigationFocus) {
+                  <circle [attr.cx]="n.x" [attr.cy]="n.y" r="27" class="investigation-ring" />
+                }
+                <!-- halo pulse pour les nœuds focus du LLM -->
+                @if (isFocusNode(n.id)) {
+                  <circle [attr.cx]="n.x" [attr.cy]="n.y" r="26" class="focus-halo" />
+                }
+                <!-- gabarit SVG selon le type d'entité -->
+                @switch (n.type) {
+                  @case ('ALERT') {
+                    <circle [attr.cx]="n.x" [attr.cy]="n.y" r="22" class="g-alrt" />
+                  }
+                  @case ('CUSTOMER') {
+                    <circle [attr.cx]="n.x" [attr.cy]="n.y" r="16" class="g-cust" />
+                  }
+                  @case ('ACCOUNT') {
+                    <rect [attr.x]="n.x - 13" [attr.y]="n.y - 10" width="26" height="20" rx="4" class="g-acc" />
+                  }
+                  @case ('TRANSACTION') {
+                    <polygon
+                      [attr.points]="(n.x) + ',' + (n.y - 12) + ' ' + (n.x + 12) + ',' + n.y + ' ' + n.x + ',' + (n.y + 12) + ' ' + (n.x - 12) + ',' + n.y"
+                      class="g-tx" />
+                  }
+                  @case ('BENEFICIARY') {
+                    <polygon [attr.points]="hexPoints(n.x, n.y, 13)" class="g-ben" />
+                  }
+                  @case ('DEVICE') {
+                    <rect [attr.x]="n.x - 8" [attr.y]="n.y - 13" width="16" height="26" rx="3" class="g-dev" />
+                  }
+                  @case ('IP') {
+                    <circle [attr.cx]="n.x" [attr.cy]="n.y" r="8" class="g-ip" />
+                  }
+                  @case ('COUNTRY') {
+                    <circle [attr.cx]="n.x" [attr.cy]="n.y" r="11" class="g-ctry" />
+                  }
+                  @case ('GROUP') {
+                    <polygon [attr.points]="hexPoints(n.x, n.y, 16)" class="g-grp" />
+                  }
+                }
+                <text class="node-label" [attr.x]="n.x" [attr.y]="n.y + 30">{{ shortLabel(n.label) }}</text>
+                <text class="node-type mono" [attr.x]="n.x" [attr.y]="n.y + 42">{{ typeLabel(n.type) }}</text>
+              </g>
+            }
+          </g>
+
+          <!-- tooltip survol (coordonnées du graphe) -->
+          @if (hover(); as h) {
+            <g class="tooltip-g" [attr.transform]="transform()">
+              <rect
+                [attr.x]="h.x + 18"
+                [attr.y]="h.y - 34"
+                width="240"
+                height="58"
+                rx="6"
+                class="tooltip-bg" />
+              <text [attr.x]="h.x + 28" [attr.y]="h.y - 14" class="tooltip-title">{{ h.label }}</text>
+              <text [attr.x]="h.x + 28" [attr.y]="h.y + 4" class="tooltip-sub">
+                    {{ typeLabel(h.type) }} · risque {{ h.risk | fr }}{{ h.investigationFocus ? ' · centre d\u2019investigation' : '' }}
+              </text>
+            </g>
+          }
+        </svg>
+
+        <!-- ── Légende ─────────────────────────────────────────── -->
+        <div class="legend mono">
+          <span class="legend__title">LÉGENDE</span>
+          <span class="legend__group">
+            <i class="sw sw--cust"></i> Client
+            <i class="sw sw--acc"></i> Compte
+            <i class="sw sw--tx"></i> Transaction
+            <i class="sw sw--ben"></i> Bénéficiaire
+            <i class="sw sw--dev"></i> Appareil
+            <i class="sw sw--ip"></i> IP
+            <i class="sw sw--ctry"></i> Pays
+            <i class="sw sw--alrt"></i> Alerte
+            <i class="sw sw--grp"></i> Groupe d'alertes
+          </span>
+          <span class="legend__group">
+            <i class="dot dot--high"></i> ÉLEVÉ
+            <i class="dot dot--med"></i> MOYEN
+            <i class="dot dot--low"></i> FAIBLE
+          </span>
+          <span class="legend__group legend__group--rel">
+            <span class="legend__rel-title">RELATIONS (traits)</span>
+            <i class="rel rel--owns"></i> possède →
+            <i class="rel rel--sent"></i> paie →
+            <i class="rel rel--to"></i> virement →
+            @if (depth() === 'network') {
+              <i class="rel rel--shared"></i> Bénéficiaire commun
+              <i class="rel rel--device"></i> Appareil commun
+              <i class="rel rel--ip"></i> IP commune
+            }
+            <i class="rel rel--belongs"></i> alerte ↘
+            <i class="rel rel--geo"></i> localisation
+          </span>
+          <span class="legend__group legend__group--note"><i class="ring"></i> Entité principale de l’enquête</span>
+        </div>
+
+      </div>
+
+      <!-- ── Panneau droit : narratif + détail nœud ─────────────── -->
+      <aside class="side">
+        <!-- ── Preuve d'arête sélectionnée ──────────────────────── -->
+        @if (selectedEdge(); as se) {
+          <div class="edge-proof">
+            <h4 class="edge-proof__type">{{ se.label | fr }}</h4>
+            <p class="edge-proof__endpoints">{{ pos(se.source)?.label }} → {{ pos(se.target)?.label }}</p>
+            <p class="edge-proof__ev">{{ se.evidence }}</p>
+            @if (se.proofTransactions?.length) {
+              <ul class="transaction-proofs">
+                @for (proof of se.proofTransactions; track proof.transactionId) {
+                  <li>
+                    <a [routerLink]="['/transactions']" [queryParams]="{ tx: proof.transactionId }">
+                      Transaction #{{ proof.transactionId }}
+                    </a>
+                    @if (proof.date) { <time [attr.datetime]="proof.date">{{ proof.date | date: 'dd/MM/yyyy HH:mm' }}</time> }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+        <!-- Pourquoi cette alerte (100% déterministe) -->
+        <div class="panel why">
+          <h3 class="panel__title mono">POURQUOI CETTE ALERTE ?</h3>
+          @if (transaction(); as tx) {
+            <p class="engine-score">
+              <strong>{{ tx.meta['riskScore'] ?? '—' }}/100</strong>
+              <span>Score moteur · risque {{ tx.risk | fr }}</span>
+            </p>
+          }
+          @if (d.readingLine) {
+            <p class="why__line">{{ d.readingLine }}</p>
+          }
+          @if (d.scoreFactors.length) {
+            <h4 class="narr-sub mono">FACTEURS DU SCORE MOTEUR</h4>
+            <ul class="why__factors mono">
+              @for (f of d.scoreFactors; track $index) {
+                <li>
+                  @if (f.ruleCode) { <span class="why__code">{{ f.ruleCode }}</span> }
+                  @if (f.ruleName) { <span class="why__name">{{ f.ruleName }}</span> }
+                  @if (f.points != null) { <span class="why__pts">+{{ f.points }} pts</span> }
+                  @if (f.weight != null) { <span class="why__w">poids {{ f.weight }}</span> }
+                  @if (f.reason) { <span class="why__reason">{{ f.reason }}</span> }
+                </li>
+              }
+            </ul>
+          }
+          @if (networkLinks().length) {
+            <button type="button" class="tool-btn" (click)="setDepth('network')">
+              Explorer {{ linkedAccounts().size }} compte(s) lié(s)
+            </button>
+            <p class="why__context">Les éléments partagés orientent l’enquête. Une IP commune peut correspondre à un réseau utilisé par plusieurs personnes.</p>
+          }
+        </div>
+
+        <!-- Narratif IA -->
+        <div class="panel narrative">
+          <div class="narr-head">
+            <h3 class="panel__title mono">LECTURE SENTINEL·AI</h3>
+            <span class="mode-pill mono" [attr.data-mode]="d.mode">
+              {{ d.mode === 'LLM' ? 'LLM · OLLAMA' : 'RÈGLES' }}
+            </span>
+          </div>
+          <p class="narr-conf mono">
+            qualité des données {{ qualityLabel(d.narrative.dataQuality) }}
+            · avis consultatif, décision analyste
+          </p>
+          @if (d.narrative.llmScore != null) {
+            <p class="llm-score mono" [attr.data-band]="llmBand(d.narrative.llmScore)">
+              PRIORITÉ DE REVUE SUGGÉRÉE : {{ d.narrative.llmScore }}/100
+              @if (d.narrative.llmScoreRationale) {
+                — {{ d.narrative.llmScoreRationale }}
+              }
+            </p>
+          }
+          @if (d.narrative.dataQuality !== 'COMPLETE') {
+            <p class="narr-quality mono" [attr.data-quality]="d.narrative.dataQuality">
+              @switch (d.narrative.dataQuality) {
+                @case ('PARTIAL') {
+                  Données incomplètes (scan global tronqué, historique court ou profil
+                  absent) : l'absence d'un signal ici n'est PAS une preuve d'absence.
+                }
+                @default {
+                  Transaction focale introuvable ou graphe réduit à l'alerte :
+                  cet avis porte sur très peu de données.
+                }
+              }
+            </p>
+          }
+          <p class="narr-summary">{{ d.narrative.summary }}</p>
+
+          @if (d.narrative.checks?.length) {
+            <h4 class="narr-sub mono">Pistes à vérifier</h4>
+            <div class="investigation-checks">
+              @for (check of d.narrative.checks; track $index) {
+                <article class="investigation-check">
+                  <p class="check-fact">{{ check.fact }}</p>
+                  <dl>
+                    <dt>Hypothèse</dt><dd>{{ check.hypothesis }}</dd>
+                    <dt>Autre explication ou donnée manquante</dt><dd>{{ check.alternative }}</dd>
+                    <dt>Vérification</dt><dd>{{ check.verification }}</dd>
+                  </dl>
+                  @for (reference of check.evidence; track $index) {
+                    @if (reference.edgeId; as edgeId) {
+                      <button type="button" class="tool-btn" (click)="openEvidence(edgeId)">
+                        Voir le lien · {{ reference.label }}
+                      </button>
+                    } @else {
+                      <details class="check-source">
+                        <summary>{{ reference.label }}</summary>
+                        <p>{{ reference.detail }}</p>
+                      </details>
+                    }
+                  }
+                </article>
+              }
+            </div>
+          } @else if (d.narrative.hypotheses.length) {
+            <h4 class="narr-sub mono">HYPOTHÈSES</h4>
+            <ol class="narr-list">
+              @for (h of d.narrative.hypotheses; track $index) {
+                <li>{{ h }}</li>
+              }
+            </ol>
+          }
+
+          @if (!d.narrative.checks?.length && d.narrative.recommendedActions.length) {
+            <h4 class="narr-sub mono">ACTIONS RECOMMANDÉES</h4>
+            <ul class="narr-list narr-list--actions">
+              @for (a of d.narrative.recommendedActions; track $index) {
+                <li>{{ a }}</li>
+              }
+            </ul>
+          }
+
+          @if (d.narrative.focusNodes.length) {
+            <h4 class="narr-sub mono">FOCUS PRIORITAIRE (IA)</h4>
+            <div class="focus-chips">
+              @for (f of d.narrative.focusNodes; track f) {
+                <button
+                  type="button"
+                  class="focus-chip mono"
+                  [class.is-active]="selected()?.id === f"
+                  (click)="openFocus(f)">
+                  {{ focusLabel(f) }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Détail du nœud sélectionné -->
+        @if (selected(); as sel) {
+          <div class="panel node-detail">
+            <span class="kicker mono">ENTITÉ SÉLECTIONNÉE</span>
+            <h3 class="node-detail__title">{{ sel.label }}</h3>
+            <p class="node-detail__meta mono">
+              {{ typeLabel(sel.type) }} ·
+              <span class="risk-tag" [attr.data-risk]="sel.risk">{{ sel.risk | fr }}</span>
+              · {{ sel.subtitle }}
+              @if (sel.investigationFocus) {
+                <span class="focus-tag mono">CENTRE D'INVESTIGATION</span>
+              }
+            </p>
+            @if (metaEntries(sel).length) {
+              <dl class="meta-list mono">
+                @for (m of metaEntries(sel); track m.key) {
+                  <div class="meta-row">
+                    <dt>{{ m.key }}</dt>
+                    <dd>{{ m.value }}</dd>
+                  </div>
+                }
+              </dl>
+            }
+            @if (selectedRelations().length) {
+              <h4 class="narr-sub mono">Relations de cette entité</h4>
+              <ul class="relation-list">
+                @for (relation of selectedRelations(); track relation.id) {
+                  <li><button type="button" (click)="onEdgeClick(relation)">
+                    <strong>{{ relation.label }}</strong>
+                    <span>{{ pos(relation.source === sel.id ? relation.target : relation.source)?.label }}</span>
+                  </button></li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </aside>
+    </div>
+  }
+</section>

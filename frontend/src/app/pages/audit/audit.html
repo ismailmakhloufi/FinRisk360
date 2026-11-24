@@ -1,0 +1,91 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">ADMINISTRATION · TRAÇABILITÉ M4</p>
+      <h2 class="page__title">
+        Journal d'audit <span class="page__count mono">{{ total() }}</span>
+      </h2>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="error mono">⚠ {{ error() }}</div>
+  }
+
+  <div class="panel table-card" [class.is-loading]="loading()">
+    <div class="table-scroll">
+      <table mat-table [dataSource]="rows()" class="sentinel-table">
+
+        <ng-container matColumnDef="auditId">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let a" class="mono id">#{{ a.auditId }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="userId">
+          <th mat-header-cell *matHeaderCellDef>Utilisateur</th>
+          <td mat-cell *matCellDef="let a">
+            @if (a.userId; as who) {
+              <span class="chip mono">UTILISATEUR #{{ who }}</span>
+            } @else {
+              <span class="dim mono">système</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef>Action</th>
+          <td mat-cell *matCellDef="let a">
+            <span class="action mono">{{ a.action | fr }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="entity">
+          <th mat-header-cell *matHeaderCellDef>Entité</th>
+          <td mat-cell *matCellDef="let a" class="mono dim">
+            {{ a.entityType | fr }}{{ a.entityId ? ' #' + a.entityId : '' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="delta">
+          <th mat-header-cell *matHeaderCellDef>Changement</th>
+          <td mat-cell *matCellDef="let a" class="mono delta">
+            @if (a.oldValue || a.newValue) {
+              <span class="old">{{ a.oldValue | fr: '∅' }}</span>
+              <span class="arrow">→</span>
+              <span class="new">{{ a.newValue | fr: '∅' }}</span>
+            } @else {
+              <span class="dim">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Quand</th>
+          <td mat-cell *matCellDef="let a" class="mono dim">{{ a.createdAt | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="ipAddress">
+          <th mat-header-cell *matHeaderCellDef>IP</th>
+          <td mat-cell *matCellDef="let a" class="mono dim">{{ a.ipAddress ?? '—' }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="['auditId','userId','action','entity','delta','createdAt','ipAddress']"></tr>
+        <tr mat-row *matRowDef="let row; columns: ['auditId','userId','action','entity','delta','createdAt','ipAddress'];"></tr>
+      </table>
+    </div>
+
+    @if (!loading() && !error() && rows().length === 0) {
+      <div class="empty">Journal vide.</div>
+    }
+
+    <mat-paginator
+      class="sentinel-paginator"
+      [length]="total()"
+      [pageIndex]="page()"
+      [pageSize]="25"
+      hidePageSize
+      (page)="onPage($event)"
+      showFirstLastButtons
+      aria-label="Pagination de l'audit" />
+  </div>
+</section>

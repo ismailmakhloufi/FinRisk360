@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Marchand #{{ merchant.merchantId }}{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card__head">
+    <h2>Dossier marchand — {{ merchant.merchantName }}</h2>
+    <span class="count mono">#{{ merchant.merchantId }}</span>
+  </div>
+
+  <div class="toolbar">
+    <a class="btn btn--ghost" href="{{ url_for('admin') }}">← Tous les marchands</a>
+    <form method="post" action="{{ url_for('delete_merchant', merchant_id=merchant.merchantId) }}"
+          onsubmit="return confirm('Supprimer le marchand #{{ merchant.merchantId }} ? Ses transactions sont conservees sans marchand lie.');">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+      <button type="submit" class="btn btn--danger">SUPPRIMER</button>
+    </form>
+  </div>
+
+  {% if sim_user %}
+  <div class="pwd">
+    <span class="field__label">ACCES ESPACE MARCHAND</span>
+    <span class="mono">identifiant : {{ sim_user.username }}</span>
+    <span class="dim">(mot de passe defini a la creation)</span>
+  </div>
+  {% endif %}
+
+  <h3 class="section">FICHE <span class="pill pill--{{ merchant.status | lower }}">{{ merchant.status }}</span></h3>
+  <div class="detail-grid">
+    <div><span class="field__label">NOM</span>{{ merchant.merchantName }}</div>
+    <div><span class="field__label">CATEGORIE</span>{{ merchant.merchantCategory or '—' }}</div>
+    <div><span class="field__label">PAYS / VILLE</span>{{ merchant.country or '—' }} · {{ merchant.city or '—' }}</div>
+    <div><span class="field__label">CREATION</span>{{ merchant.createdAt[:10] if merchant.createdAt else '—' }}</div>
+  </div>
+
+  <h3 class="section">TRANSACTIONS RECENTRANT CE MARCHAND ({{ transactions | length }})</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Type</th><th>Compte</th><th>Statut</th><th class="right">Montant</th></tr>
+      </thead>
+      <tbody>
+        {% for t in transactions | sort(attribute='transactionId', reverse=true) %}
+        <tr>
+          <td class="mono">{{ t.transactionId }}</td>
+          <td class="mono">{{ t.transactionDate[:16].replace('T', ' ') }}</td>
+          <td><span class="chip">{{ t.transactionType }}</span></td>
+          <td class="mono">{{ t.accountId }}</td>
+          <td><span class="pill pill--{{ t.status | lower }}">{{ t.status }}</span></td>
+          <td class="right mono strong">{{ '%.2f'|format(t.amount) }} {{ t.currency }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty">Aucune transaction vers ce marchand.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

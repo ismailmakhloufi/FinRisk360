@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Nouveau marchand{% endblock %}
+
+{% block content %}
+<section class="card card--narrow">
+  <div class="card__head">
+    <h2>Enregistrer un marchand</h2>
+    <a class="btn btn--ghost" href="{{ url_for('admin') }}">← Retour</a>
+  </div>
+
+
+  <form method="post" class="form form--grid">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+    <label class="field">
+      <span class="field__label">NOM DU MARCHAND *</span>
+      <input name="merchantName" required maxlength="100" placeholder="SOUK.COM" />
+    </label>
+    <label class="field">
+      <span class="field__label">CATEGORIE</span>
+      <input name="merchantCategory" maxlength="50" placeholder="E_COMMERCE" />
+    </label>
+    <label class="field">
+      <span class="field__label">PAYS (ISO-2)</span>
+      <input name="country" maxlength="2" value="TN" class="w-narrow" />
+    </label>
+    <label class="field">
+      <span class="field__label">VILLE</span>
+      <input name="city" maxlength="50" placeholder="Sfax" />
+    </label>
+
+    <div class="ops">
+      <button type="submit" class="btn btn--primary">+ ENREGISTRER</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+<ol class="chain">
+  @for (step of steps(); track step.key; let last = $last) {
+    <li class="chain__step" [attr.data-state]="step.state">
+      <div class="chain__node">
+        @switch (step.state) {
+          @case ('done') { <span class="glyph glyph--done">✓</span> }
+          @case ('failed') { <span class="glyph glyph--failed">✕</span> }
+          @case ('running') { <span class="glyph glyph--running"></span> }
+          @case ('skipped') { <span class="glyph glyph--skipped">–</span> }
+          @default { <span class="glyph glyph--idle"></span> }
+        }
+      </div>
+
+      <div class="chain__body">
+        <p class="chain__label mono">{{ step.label }}</p>
+        <p class="chain__endpoint mono">{{ step.endpoint }}</p>
+        @if (step.detail) {
+          <p class="chain__detail mono">{{ step.detail }}</p>
+        }
+      </div>
+
+      @if (!last) {
+        <span class="chain__link" [attr.data-state]="step.state"></span>
+      }
+    </li>
+  }
+</ol>
+
+@if (verdict(); as v) {
+  <div class="verdict">
+    <div class="verdict__score">
+      <span class="verdict__num mono">{{ v.score | number: '1.2-2' }}</span>
+      <span class="verdict__scale mono">/100</span>
+    </div>
+    <div class="verdict__meta">
+      <span class="verdict__badge" [attr.data-level]="v.riskLevel">{{ v.riskLevel | fr }}</span>
+      <span class="verdict__badge" [attr.data-decision]="v.decision">{{ v.decision | fr }}</span>
+      <span class="verdict__id mono">assessment #{{ v.assessmentId }}</span>
+    </div>
+  </div>
+}

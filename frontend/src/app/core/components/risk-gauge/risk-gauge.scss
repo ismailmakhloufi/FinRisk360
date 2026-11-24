@@ -1,0 +1,63 @@
+.gauge {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.gauge__track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.gauge__value {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-dasharray: 251.327;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.4s ease;
+}
+
+.gauge__value[data-level='LOW'] {
+  stroke: var(--sev-low);
+}
+
+.gauge__value[data-level='MEDIUM'] {
+  stroke: var(--sev-medium);
+}
+
+.gauge__value[data-level='HIGH'],
+.gauge__value[data-level='CRITICAL'] {
+  stroke: var(--sev-high);
+}
+
+.gauge__score {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 700;
+  fill: var(--text);
+  text-anchor: middle;
+}
+
+.gauge__level {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-anchor: middle;
+}
+
+.gauge__level[data-level='LOW'] {
+  fill: var(--sev-low);
+}
+
+.gauge__level[data-level='MEDIUM'] {
+  fill: var(--sev-medium);
+}
+
+.gauge__level[data-level='HIGH'],
+.gauge__level[data-level='CRITICAL'] {
+  fill: var(--sev-high);
+}

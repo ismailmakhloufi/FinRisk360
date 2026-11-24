@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://finrisk.tn/transactions"
+           targetNamespace="http://finrisk.tn/transactions"
+           elementFormDefault="qualified">
+
+    <!-- ================= requete ================= -->
+    <xs:element name="createTransactionRequest" type="tns:createTransactionRequestType"/>
+
+    <xs:complexType name="createTransactionRequestType">
+        <xs:sequence>
+            <xs:element name="accountId" type="xs:long"/>
+            <xs:element name="merchantId" type="xs:long" minOccurs="0"/>
+            <xs:element name="amount" type="tns:amountType"/>
+            <xs:element name="currency" type="tns:currencyType" minOccurs="0"/>
+            <xs:element name="transactionType" type="tns:transactionTypeEnum"/>
+            <xs:element name="country" type="tns:countryType"/>
+            <xs:element name="channel" type="tns:channelTypeEnum" minOccurs="0"/>
+            <xs:element name="ipAddress" type="xs:string" minOccurs="0"/>
+            <xs:element name="deviceId" type="xs:string" minOccurs="0"/>
+            <xs:element name="beneficiaryName" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:simpleType name="amountType">
+        <xs:restriction base="xs:decimal">
+            <xs:minExclusive value="0"/>
+            <xs:totalDigits value="15"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="currencyType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Za-z]{3}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="countryType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Za-z]{2}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="transactionTypeEnum">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="PAYMENT"/>
+            <xs:enumeration value="TRANSFER"/>
+            <xs:enumeration value="WITHDRAWAL"/>
+            <xs:enumeration value="DEPOSIT"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="channelTypeEnum">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="MOBILE"/>
+            <xs:enumeration value="WEB"/>
+            <xs:enumeration value="ATM"/>
+            <xs:enumeration value="POS"/>
+            <xs:enumeration value="API"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ================= reponse ================= -->
+    <xs:element name="createTransactionResponse" type="tns:createTransactionResponseType"/>
+
+    <xs:complexType name="createTransactionResponseType">
+        <xs:sequence>
+            <xs:element name="transactionId" type="xs:long"/>
+            <xs:element name="status" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>

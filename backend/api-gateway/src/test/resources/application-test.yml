@@ -1,0 +1,5 @@
+
+
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET:finrisk-test-signing-key-for-unit-tests-only}

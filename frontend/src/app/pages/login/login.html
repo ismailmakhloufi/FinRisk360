@@ -1,0 +1,62 @@
+<div class="login">
+  <!-- Fond : réseau de signaux SENTINEL -->
+  <div class="bg" aria-hidden="true">
+    <span class="bg__grid"></span>
+    <span class="bg__glow bg__glow--a"></span>
+    <span class="bg__glow bg__glow--b"></span>
+    <span class="bg__node n1"></span>
+    <span class="bg__node n2"></span>
+    <span class="bg__node n3"></span>
+    <span class="bg__node n4"></span>
+    <span class="bg__node n5"></span>
+    <span class="bg__node n6"></span>
+    <span class="bg__scan"></span>
+  </div>
+
+  <form class="login__card panel" (submit)="$event.preventDefault(); submit(u.value, p.value)">
+    <div class="brand">
+      <span class="brand__icon">◆</span>
+      <div>
+        <span class="brand__name">FINRISK360</span>
+        <span class="brand__sub">SENTINEL CONSOLE</span>
+      </div>
+    </div>
+
+    <p class="kicker mono">ACCÈS RESTREINT · GESTION PAR RÔLE M5</p>
+    <h1 class="title">Authentification</h1>
+
+    <label class="field">
+      <span class="field__label mono">UTILISATEUR</span>
+      <input
+        class="field__input mono"
+        name="username"
+        autocomplete="username"
+        placeholder="admin"
+        #u />
+    </label>
+
+    <label class="field">
+      <span class="field__label mono">MOT DE PASSE</span>
+      <input
+        class="field__input"
+        type="password"
+        name="password"
+        autocomplete="current-password"
+        placeholder="••••••••"
+        #p />
+    </label>
+
+    @if (error(); as e) {
+      <div class="error mono" role="alert">
+        <span class="error__dot"></span>
+        401 · {{ e }}
+      </div>
+    }
+
+    <button class="submit" type="submit" [disabled]="loading()">
+      {{ loading() ? 'VÉRIFICATION…' : 'SE CONNECTER' }}
+      <span class="submit__arrow">→</span>
+    </button>
+
+  </form>
+</div>

@@ -1,0 +1,55 @@
+server:
+  address: ${SERVER_BIND_ADDRESS:127.0.0.1}
+  port: 8083
+
+spring:
+  application:
+    name: transaction-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finrisk
+    username: finrisk
+    password: ${POSTGRES_PASSWORD}
+    # Pool borne : 8 services partagent PostgreSQL (max 100 connexions).
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+  jpa:
+    # Le schema SQL (postgres/02-schema.sql) est la source de verite :
+    # Hibernate ne cree rien, il VERIFIE seulement que les entites correspondent.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  jackson:
+    time-zone: UTC
+
+# Appels SORTANTS : regulation du solde chez account-service (port 8082)
+# quand l'analyste ACCEPTE (COMPLETED) une transaction.
+clients:
+  account:
+    base-url: ${ACCOUNT_SERVICE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    tn.finrisk: INFO
+    org.hibernate.SQL: DEBUG

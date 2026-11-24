@@ -1,0 +1,98 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">TRAÇABILITÉ · TOUTES LES TRANSACTIONS</p>
+      <h2 class="page__title">Journal</h2>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="error mono">⚠ {{ error() }}</div>
+  }
+
+  <!-- Consultation ciblee (?tx=42) : une seule transaction, sortie du
+       rapport de nuit ou d'une alerte, avec retour au journal. -->
+  @if (focused(); as t) {
+    <div class="focus-banner mono">
+      <span>
+        CONSULTATION CIBLÉE — TX #{{ t.transactionId }}
+        · {{ t.amount | number: '1.2-2' }} {{ t.currency }}
+        · {{ t.transactionType | fr }}
+        · <span class="badge" [attr.data-status]="t.status">{{ t.status | fr }}</span>
+      </span>
+      <button class="focus-banner__back" (click)="clearFocus()">
+        RETOUR AU JOURNAL →
+      </button>
+    </div>
+  }
+
+  <div class="panel table-card" [class.is-loading]="loading()">
+    <div class="table-scroll">
+      <table mat-table [dataSource]="rows()" class="sentinel-table">
+
+        <ng-container matColumnDef="transactionId">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let t" class="mono id">#{{ t.transactionId }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="accountId">
+          <th mat-header-cell *matHeaderCellDef>Compte</th>
+          <td mat-cell *matCellDef="let t"><span class="chip mono">CLIENT-COMPTE #{{ t.accountId }}</span></td>
+        </ng-container>
+
+        <ng-container matColumnDef="transactionType">
+          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <td mat-cell *matCellDef="let t"><span class="chip mono">{{ t.transactionType | fr }}</span></td>
+        </ng-container>
+
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef class="num">Montant</th>
+          <td mat-cell *matCellDef="let t" class="mono num amount">
+            {{ t.amount | number: '1.3-3' }} <span class="cur">{{ t.currency }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="country">
+          <th mat-header-cell *matHeaderCellDef>Pays</th>
+          <td mat-cell *matCellDef="let t" class="mono country">{{ t.country }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="channel">
+          <th mat-header-cell *matHeaderCellDef>Canal</th>
+          <td mat-cell *matCellDef="let t" class="mono dim">{{ t.channel | fr }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="transactionDate">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let t" class="mono dim">{{ t.transactionDate | date: 'dd/MM/yyyy HH:mm' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Statut</th>
+          <td mat-cell *matCellDef="let t">
+            <span class="badge" [attr.data-status]="t.status">{{ t.status | fr }}</span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="txColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: txColumns;"></tr>
+      </table>
+    </div>
+
+    @if (!loading() && rows().length === 0) {
+      <div class="empty">Aucune transaction — envoie la première depuis le Bank Simulator.</div>
+    }
+
+    @if (!focused()) {
+      <mat-paginator
+        class="sentinel-paginator"
+        [length]="total()"
+        [pageIndex]="page()"
+        [pageSize]="10"
+        hidePageSize
+        (page)="onPage($event)"
+        showFirstLastButtons
+        aria-label="Pagination des transactions" />
+    }
+  </div>
+</section>

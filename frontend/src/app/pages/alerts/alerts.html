@@ -1,0 +1,494 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">ALERTES · GESTION DES DOSSIERS</p>
+      <h2 class="page__title">
+        Alertes <span class="page__count mono">{{ total() }}</span>
+      </h2>
+    </div>
+
+    <nav class="filters" aria-label="Filtrer par statut">
+      @for (f of filters; track f) {
+        <button
+          type="button"
+          class="chip-btn mono"
+          [class.is-active]="filter() === f"
+          (click)="setFilter(f)">
+          {{ (f | fr) || 'TOUS' }}
+        </button>
+      }
+    </nav>
+  </header>
+
+  @if (filter() === 'OPEN' && total() > 0) {
+    <div class="queue mono">
+      <span class="queue__count">{{ total() }}</span>
+      alerte(s) <strong>vous attendent</strong> — ← → au clavier pour naviguer
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error mono">⚠ {{ error() }}</div>
+  }
+  @if (flash()) {
+    <div class="flash mono">✓ {{ flash() }}</div>
+  }
+
+  <div class="alerts-grid">
+
+    <!-- ── Liste ─────────────────────────────────────── -->
+    <div class="panel list" [class.is-loading]="loading()">
+      @for (a of alerts(); track a.alertId) {
+        <button
+          type="button"
+          class="alert-row"
+          [class.is-active]="selected()?.alertId === a.alertId"
+          (click)="select(a)">
+          <span class="stripe" [attr.data-sev]="a.severity"></span>
+          <span class="row-main">
+            <span class="row-top">
+              <span class="code mono">{{ a.alertCode }}</span>
+              <span class="sev-badge mono" [attr.data-sev]="a.severity">{{ a.severity | fr }}</span>
+            </span>
+            <span class="row-sub mono">
+              {{ a.alertType | fr }}@if (a.amount != null) { · {{ a.amount | number: '1.0-0' }} TND } · évaluation #{{ a.assessmentId }} · {{ a.createdAt | date: 'dd/MM HH:mm' }}
+            </span>
+          </span>
+          <span class="st-badge mono" [attr.data-status]="a.status">{{ a.status | fr }}</span>
+        </button>
+      } @empty {
+        <div class="empty">
+          @if (filter() === 'OPEN') {
+            <p class="empty__ok">✓ File vide</p>
+            <p>Toutes les alertes de cette vue ont été traitées.</p>
+          } @else {
+            Aucune alerte{{ filter() ? ' pour ce filtre' : '' }}.
+          }
+        </div>
+      }
+
+      <mat-paginator
+        class="sentinel-paginator"
+        [length]="total()"
+        [pageIndex]="page()"
+        [pageSize]="12"
+        hidePageSize
+        (page)="onPage($event)"
+        showFirstLastButtons
+        aria-label="Pagination des alertes" />
+    </div>
+
+    <!-- ── Détail ────────────────────────────────────── -->
+    <div class="panel detail">
+      @if (selected(); as al) {
+        <header class="detail__head">
+          <div>
+            <p class="kicker mono">ALERTE SÉLECTIONNÉE</p>
+            <h3 class="detail__code">
+              {{ al.alertCode }}
+              <span class="sev-badge mono big" [attr.data-sev]="al.severity">{{ al.severity | fr }}</span>
+              <span class="st-badge mono big" [attr.data-status]="al.status">{{ al.status | fr }}</span>
+            </h3>
+            <p class="detail__meta mono">
+              type {{ al.alertType | fr }} · évaluation #{{ al.assessmentId }} ·
+              créée le {{ al.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+              @if (clientName(); as name) {
+                · client <strong class="meta-client">{{ name }}</strong>
+              }
+            </p>
+          </div>
+        </header>
+
+        <!-- ── Bannière d'agregation : le PATTERN au-délà de l'alerte ── -->
+        @if (linkedGroup(); as g) {
+          <div class="group-banner mono" [attr.data-sev]="g.severity">
+            <div class="group-banner__top">
+              <span class="group-banner__count">
+                {{ g.relatedCount }} alerte(s) apparentée(s) · cumul
+                {{ g.totalAmount | number: '1.2-2' }} TND / {{ g.windowHours }} h
+              </span>
+              <span class="sev-badge mono" [attr.data-sev]="g.severity">
+                AGRÉGÉE {{ g.severity | fr }}
+              </span>
+            </div>
+            <p class="group-banner__why">
+              Périmètre {{ g.scopeType | fr }}={{ g.scopeValue }}
+              @if (clientName(); as name) { · client <strong>{{ name }}</strong> } · fenêtre
+              {{ g.windowStart | date: 'dd/MM HH:mm' }} → {{ g.windowEnd | date: 'dd/MM HH:mm' }}
+              — ces alertes sont liées : prise isolément elles paraissent faibles,
+              ensemble elles dessinent un schema (fractionnement / structuring).
+            </p>
+            @if (membersDetailed().length) {
+              <p class="group-members__label mono">
+                COMPOSITION DU GROUPE — cliquer une ligne pour ouvrir son détail
+              </p>
+              <ul class="group-members">
+                @for (m of membersDetailed(); track m.alertId) {
+                  <li [class.is-current]="m.alertId === selected()?.alertId">
+                    <button
+                      type="button"
+                      class="group-members__row"
+                      [disabled]="m.alertId === selected()?.alertId"
+                      (click)="gotoMember(m.alertId)">
+                      <span class="group-members__id mono">
+                        {{ m.alertId === selected()?.alertId ? '▸' : '' }} #{{ m.alertId }}
+                      </span>
+                      <span class="sev-badge mono" [attr.data-sev]="m.severity">{{ m.severity | fr }}</span>
+                      <span class="st-badge mono" [attr.data-status]="m.status">{{ m.status | fr }}</span>
+                      <span class="group-members__amt mono">{{ m.amount | number: '1.2-2' }} TND</span>
+                      <span class="group-members__type mono">{{ m.alertType | fr }}</span>
+                      <span class="group-members__date mono">{{ m.createdAt | date: 'dd/MM HH:mm' }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <ul class="group-banner__members">
+                @for (m of groupMembers(); track m.alertId) {
+                  <li [class.is-current]="m.isCurrent">
+                    @if (m.isCurrent) { ▸ } #{{ m.alertId }}
+                  </li>
+                }
+              </ul>
+            }
+            @if (g.status === 'OPEN' && canWrite) {
+              <div class="group-banner__actions">
+                <p class="group-banner__decision-label mono">DÉCISION DE GROUPE</p>
+                <button
+                  type="button"
+                  class="act act--approve"
+                  [disabled]="decidingGroup()"
+                  (click)="openGroupDecision('ACCEPT')">
+                  ✓ ACCEPTER LE PATTERN (légitime)
+                </button>
+                <button
+                  type="button"
+                  class="act act--cancel"
+                  [disabled]="decidingGroup()"
+                  (click)="openGroupDecision('REFUSE')">
+                  ✗ REFUSER · annuler + rembourser les {{ g.relatedCount }} transaction(s)
+                </button>
+              </div>
+            } @else if (g.status !== 'OPEN') {
+              <p class="group-banner__closed mono">
+                Groupe {{ g.status === 'REFUSED' ? 'REFUSÉ · transactions annulées + remboursées' : (g.status | fr) }}
+              </p>
+            }
+          </div>
+        } @else if (selected()?.groupId == null && selected()) {
+          <p class="group-banner group-banner--none mono">
+            Aucune alerte apparentée détectée pour ce compte.
+          </p>
+        }
+
+        <!-- ── DÉCISION DE L'ANALYSTE → impacte le Bank Simulator ── -->
+        @if (canWrite) {
+          <div class="decision">
+            <p class="decision__label mono">DÉCISION DE LA TRANSACTION</p>
+
+            @if (linkedTx(); as tx) {
+              <p class="decision__tx mono">
+                TX #{{ tx.transactionId }} · {{ tx.amount | number: '1.2-2' }} {{ tx.currency }}
+                · {{ tx.transactionType | fr }} · <span class="tx-badge" [attr.data-status]="tx.status">{{ tx.status | fr }}</span>
+              </p>
+              <p class="decision__src mono">
+                @if (clientName(); as name) {
+                  <strong class="tx-client">{{ name }}</strong> · compte #{{ tx.accountId }} ·
+                } @else {
+                  compte #{{ tx.accountId }} ·
+                }
+                <span class="tx-src" [attr.data-ch]="tx.channel">{{ tx.channel | fr }}</span>
+                @if (tx.channel === 'API') { · <strong>banque tierce ATLAS BANQUE :5000</strong> }
+                · {{ tx.transactionDate | date: 'dd/MM HH:mm' }}
+                @if (tx.beneficiaryName) { · → bénéficiaire {{ tx.beneficiaryName }} }
+                · {{ tx.country }}
+              </p>
+
+              @if (tx.status === 'PENDING') {
+                <div class="status-actions">
+                  <button
+                    type="button"
+                    class="act act--approve"
+                    [disabled]="deciding()"
+                    (click)="decide(true)">
+                    {{ deciding() ? '…' : '✓ VALIDER AVEC SURVEILLANCE' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="act act--cancel"
+                    [disabled]="deciding()"
+                    (click)="decide(false)">
+                    {{ deciding() ? '…' : '✗ ANNULER LA TRANSACTION' }}
+                  </button>
+                </div>
+                <p class="decision__sub mono">
+                  Accepter règle le solde maintenant · Annuler clôture sans rien débiter
+                  (aucun mouvement n'a eu lieu pendant l'examen).
+                </p>
+              } @else {
+                <p class="decision__done mono">
+                  @if (tx.status === 'COMPLETED') {
+                    ✓ Décision enregistrée — transaction validée avec surveillance.
+                  } @else if (tx.status === 'CANCELLED') {
+                    ✗ Transaction annulée — aucun débit de {{ tx.amount | number: '1.2-2' }}
+                    {{ tx.currency }} n'a été appliqué au compte source.
+                  } @else {
+                    Transaction {{ tx.status | fr }}.
+                  }
+                </p>
+              }
+            } @else {
+              <p class="decision__sub mono">Chargement de la transaction liée…</p>
+            }
+
+            <div class="status-actions">
+              @if (!linkedCase()) {
+                <button type="button" class="act act--case" (click)="openCase()">OUVRIR UN DOSSIER ▸</button>
+              }
+              <a
+                class="act act--ai mono"
+                [routerLink]="['/constellation', al.alertId]"
+                title="Graphe d'investigation : entités réelles, relations vérifiables, lecture IA">
+                ▸ CONSTELLATION RÉSEAU
+              </a>
+              @if (al.status !== 'RESOLVED' && al.status !== 'FALSE_POSITIVE') {
+                <button type="button" class="act act--done" [disabled]="deciding()" (click)="closeAlert()">
+                  CLÔTURER L'ALERTE
+                </button>
+              }
+            </div>
+
+            <!-- ── Dossier d'enquête rattaché : l'arbitrage y est porté ── -->
+            @if (linkedCase(); as cf) {
+              <div class="case-strip mono" [attr.data-status]="cf.status">
+                <span class="case-strip__id">DOSSIER-{{ cf.caseId }}</span>
+                <span class="st-badge mono" [attr.data-status]="cf.status">{{ cf.status | fr }}</span>
+                <span class="case-strip__prio">{{ cf.priority | fr }}</span>
+                @if (cf.investigationResult; as r) {
+                  <span class="case-strip__arb">arbitrage : <strong>{{ r | fr }}</strong></span>
+                } @else {
+                  <span class="case-strip__arb dim">arbitrage : en attente de décision</span>
+                }
+                <a class="case-strip__link" [routerLink]="['/cases']" title="Ouvrir la page Dossiers">
+                  ▸ PAGE DOSSIERS
+                </a>
+              </div>
+            }
+
+            @if (linkedTx(); as done) {
+              @if (done.status !== 'PENDING' && remaining() > 0) {
+                <button type="button" class="act act--next mono" (click)="step(1)">
+                  ▸ ALERTE SUIVANTE ({{ remaining() }} EN ATTENTE)
+                </button>
+              }
+            }
+          </div>
+        }
+
+        <!-- Score moteur : jauge CLIQUABLE → Score Lab (la preuve) -->
+        <div class="gauge-block">
+          @if (assessment(); as asm) {
+            <button
+              type="button"
+              class="gauge-click"
+              [class.is-open]="labOpen()"
+              (click)="labOpen.set(!labOpen())"
+              [attr.aria-expanded]="labOpen()">
+              <app-risk-gauge [score]="asm.riskScore" [level]="asm.riskLevel" />
+              <span class="gauge-hint mono">
+                @if (labOpen()) {
+                  ▲ MASQUER LA PREUVE
+                } @else {
+                  ▼ POURQUOI {{ asm.riskScore }}/100 ? PREUVE DU SCORE
+                }
+              </span>
+            </button>
+            <p class="gauge-sub mono">
+              MOTEUR {{ asm.decision | fr }} · {{ asm.engineVersion }} · score
+              {{ asm.riskScore }}/100 · {{ asm.factors.length }} facteurs évalués
+            </p>
+
+            @if (labOpen()) {
+              <app-score-lab [assessment]="asm" />
+            } @else {
+              @if (risingFactors().length) {
+                <p class="factors__head mono">
+                  CE QUI FAIT MONTER LE SCORE (+{{ totalPoints() | number: '1.1-1' }} pts)
+                </p>
+                <ul class="factors">
+                  @for (f of risingFactors(); track f.ruleId) {
+                    <li>
+                      <span class="f-code mono">{{ f.ruleCode }}</span>
+                      <span class="f-score mono">+{{ points(f) | number: '1.1-1' }} pts</span>
+                      <span class="f-reason">
+                        @if (f.ruleName) { <strong>{{ f.ruleName }}</strong> — }{{ cleanReason(f) }}
+                      </span>
+                    </li>
+                  }
+                </ul>
+              }
+              @if (neutralFactors().length) {
+                <p class="factors__head factors__head--dim mono">
+                  FACTEURS NEUTRES (0 pt)
+                </p>
+                <ul class="factors factors--dim">
+                  @for (f of neutralFactors(); track f.ruleId) {
+                    <li>
+                      <span class="f-code mono">{{ f.ruleCode }}</span>
+                      <span class="f-score mono">0,0 pts</span>
+                      <span class="f-reason">
+                        @if (f.ruleName) { <strong>{{ f.ruleName }}</strong> — }{{ cleanReason(f) }}
+                      </span>
+                    </li>
+                  }
+                </ul>
+              }
+            }
+          } @else {
+            <p class="loading mono">Chargement du score…</p>
+          }
+        </div>
+
+        <!-- Avis IA -->
+        <div class="ai-block">
+          <div class="ai-head">
+            <span class="kicker mono">AVIS IA · À CÔTÉ DU SCORE</span>
+            @if (canWrite) {
+              <button
+                type="button"
+                class="act act--ai"
+                [disabled]="analyzing()"
+                (click)="analyze()">
+                {{ analyzing() ? 'ANALYSE EN COURS…' : 'ANALYSER PAR L’IA ▸' }}
+              </button>
+            }
+          </div>
+
+          @if (analysis(); as an) {
+            <div class="ai-card">
+              <div class="ai-card__top">
+                <span class="ai-verdict" [attr.data-verdict]="an.verdict">{{ an.verdict | fr }}</span>
+                <span class="ai-conf mono">confiance {{ an.confidence * 100 | number: '1.0-0' }} %</span>
+              </div>
+              <p class="ai-side mono">
+                MOTEUR {{ an.riskScore | number: '1.0-0' }} · {{ an.decision | fr }}
+                — IA {{ an.verdict | fr }}
+              </p>
+              <p class="ai-explain">{{ an.explanation }}</p>
+              <ul class="insights">
+                @for (i of an.insights; track $index) {
+                  <li [attr.data-sev]="i.severity">
+                    <span class="i-top">
+                      <span class="i-code mono">{{ i.code | fr }}</span>
+                      <span class="i-sev mono">{{ i.severity | fr }}</span>
+                    </span>
+                    <span class="i-msg">{{ i.message }}</span>
+                    <span class="i-ev mono">{{ i.evidence }}</span>
+                  </li>
+                } @empty {
+                  <li class="i-none mono">Aucun signal au-delà du score des règles.</li>
+                }
+              </ul>
+              <p class="disclaimer mono">L'IA éclaire · la décision reste à l'analyste.</p>
+            </div>
+          } @else if (!analyzing()) {
+            <p class="ai-idle mono">Aucune analyse — lance l'analyse pour croiser transactions, réseau et historique.</p>
+          }
+        </div>
+      } @else {
+        <div class="detail-idle">
+          <p class="mono">← Sélectionne une alerte dans la liste</p>
+          <p class="sub">Score moteur, facteurs et avis IA s'afficheront ici.</p>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ── MODAL : décision de GROUPE (confirmation écrite obligatoire) ── -->
+  @if (groupDecision(); as decision) {
+    <div class="gmodal-overlay" (click)="closeGroupDecision()">
+      <div class="gmodal" (click)="$event.stopPropagation()">
+        <header class="gmodal__head">
+          <p class="kicker mono">DÉCISION DE GROUPE</p>
+          <h3 class="gmodal__title" [class.is-refuse]="decision === 'REFUSE'">
+            @if (decision === 'REFUSE') {
+              ✗ REFUSER LE GROUPE — annuler + rembourser
+            } @else {
+              ✓ ACCEPTER LE PATTERN — légitime
+            }
+          </h3>
+        </header>
+
+        @if (linkedGroup(); as g) {
+          <p class="gmodal__summary mono">
+            GROUPE #{{ g.groupId }} · {{ g.relatedCount }} transaction(s) · cumul
+            {{ g.totalAmount | number: '1.2-2' }} TND · sévérité agrégée {{ g.severity | fr }}<br />
+            Périmètre {{ g.scopeType | fr }}={{ g.scopeValue }}
+            @if (membersDetailed().length) {
+              <br />Ce que chaque décision touchera :
+              @for (m of membersDetailed(); track m.alertId) {
+                <span class="gmodal__member mono">
+                  #{{ m.alertId }} · {{ m.amount | number: '1.2-2' }} TND · {{ m.severity | fr }}
+                  @if (!$last) { · }
+                </span>
+              }
+            } @else {
+              · alertes membres
+              {{ g.memberAlertIds.length ? g.memberAlertIds.join(', ') : '—' }}
+            }
+          </p>
+        }
+
+        @if (decision === 'REFUSE') {
+          <p class="gmodal__warn mono">
+            ⚠ Action IRRÉVERSIBLE : chaque transaction du groupe sera ANNULÉE et
+            REMBOURSÉE (solde recrédité). Saisis « ANNULER » pour confirmer.
+          </p>
+        }
+
+        <label class="gmodal__field mono">
+          Motif (facultatif — tracé en audit_logs)
+          <input
+            type="text"
+            maxlength="500"
+            placeholder="ex. : structuring confirmé, client contacté…"
+            [value]="decisionReason()"
+            (input)="decisionReason.set($any($event.target).value)" />
+        </label>
+
+        @if (decision === 'REFUSE') {
+          <label class="gmodal__field mono">
+            Confirmation obligatoire — tape « ANNULER »
+            <input
+              type="text"
+              autocomplete="off"
+              placeholder="ANNULER"
+              [value]="confirmText()"
+              (input)="confirmText.set($any($event.target).value)" />
+          </label>
+        }
+
+        <footer class="gmodal__actions">
+          <button type="button" class="act act--dim" [disabled]="decidingGroup()" (click)="closeGroupDecision()">
+            Retour
+          </button>
+          <button
+            type="button"
+            class="act"
+            [class.act--approve]="decision === 'ACCEPT'"
+            [class.act--cancel]="decision === 'REFUSE'"
+            [disabled]="confirmDisabled() || decidingGroup()"
+            (click)="submitGroupDecision()">
+            {{
+              decidingGroup()
+                ? '…traitement'
+                : decision === 'REFUSE'
+                  ? 'CONFIRMER · annuler + rembourser'
+                  : 'CONFIRMER · accepter le pattern'
+            }}
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</section>

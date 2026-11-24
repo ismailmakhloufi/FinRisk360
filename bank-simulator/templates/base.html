@@ -1,0 +1,96 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ATLAS BANK  {% block title %}Console partenaire{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark">AB</span>
+      <div>
+        <strong>ATLAS BANK</strong>
+        <span class="brand__sub">service bancaire tiers</span>
+      </div>
+    </div>
+    <nav class="nav">
+      {% if session.get('uid') %}
+        {% set u = current_user() %}
+        {% if u.role == 'ADMIN' %}
+          <a href="{{ url_for('admin') }}" class="nav__link {{ 'is-active' if page == 'admin' }}">Espace Admin</a>
+        {% elif u.role == 'CLIENT' %}
+          <a href="{{ url_for('client') }}" class="nav__link {{ 'is-active' if page == 'client' }}">Mon espace</a>
+        {% elif u.role == 'MERCHANT' %}
+          <a href="{{ url_for('merchant') }}" class="nav__link {{ 'is-active' if page == 'merchant' }}">Mon espace</a>
+        {% endif %}
+        <span class="nav__user mono">{{ u.username }} {{ u.role }}</span>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}" />
+          <button type="submit" class="nav__link nav__logout">Deconnexion</button>
+        </form>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        {% if category == 'creds' %}
+          <div class="flash flash--creds" role="status">
+            <span class="creds__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+            </span>
+            <span class="creds__body">
+              <strong class="creds__title">{{ message.title }}</strong>
+              <span class="creds__msg">{{ message.msg }}</span>
+              <span class="creds__fields">
+                <span class="creds__field">
+                  <span class="creds__pair">
+                    <span class="creds__label">IDENTIFIANT :</span>
+                    <span class="creds__value mono">{{ message.username }}</span>
+                  </span>
+                  <button type="button" class="creds__copy" data-copy="{{ message.username }}" title="Copier l'identifiant" aria-label="Copier l'identifiant">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                  </button>
+                </span>
+                <span class="creds__field">
+                  <span class="creds__pair">
+                    <span class="creds__label">MOT DE PASSE :</span>
+                    <span class="creds__value mono">{{ message.password }}</span>
+                  </span>
+                  <button type="button" class="creds__copy" data-copy="{{ message.password }}" title="Copier le mot de passe" aria-label="Copier le mot de passe">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                  </button>
+                </span>
+              </span>
+              <span class="creds__hint">{{ message.hint }}</span>
+            </span>
+          </div>
+        {% elif category == 'ko' %}
+          <div class="flash flash--ko" role="alert">{{ message }}</div>
+        {% else %}
+          <div class="flash flash--ok" role="status">{{ message }}</div>
+        {% endif %}
+      {% endfor %}
+    {% endwith %}
+
+    {% if error %}
+      <div class="flash flash--ko" role="alert">{{ error }}</div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.creds__copy, .copy') : null;
+      if (!btn) return;
+      navigator.clipboard.writeText(btn.dataset.copy).then(function () {
+        btn.classList.add('is-done');
+        setTimeout(function () { btn.classList.remove('is-done'); }, 1200);
+      });
+    });
+  </script>
+</body>
+</html>

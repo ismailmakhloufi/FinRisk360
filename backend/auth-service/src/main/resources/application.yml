@@ -1,0 +1,52 @@
+server:
+  address: ${SERVER_BIND_ADDRESS:127.0.0.1}
+  port: 8087
+
+spring:
+  application:
+    name: auth-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finrisk
+    username: finrisk
+    password: ${POSTGRES_PASSWORD}
+
+  jpa:
+    # Le schema SQL (postgres/02-schema.sql) est la source de verite.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  jackson:
+    time-zone: UTC
+
+# Contrat JWT partage avec api-gateway : MÊME secret, MÊME forme de claims.
+# En production : variable d'environnement uniquement (jamais de secret en dur).
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET}
+    issuer: finrisk360
+    access-ttl-minutes: 15
+    refresh-ttl-days: 7
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    tn.finrisk: INFO
+    org.hibernate.SQL: WARN

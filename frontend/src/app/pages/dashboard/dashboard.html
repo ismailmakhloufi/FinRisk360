@@ -1,0 +1,435 @@
+<section class="page">
+  <header class="page__head">
+    <div>
+      <p class="kicker mono">SENTINEL · PILOTAGE RISQUE</p>
+      <h2 class="page__title">Tableau de bord</h2>
+    </div>
+    <nav class="quick">
+      <span class="live mono" title="Rafraîchissement automatique toutes les 15 s">
+        <span class="live__dot"></span>
+        TEMPS RÉEL
+        @if (lastUpdate(); as t) {
+          <span class="live__t">· {{ t | date: 'HH:mm:ss' }}</span>
+        }
+      </span>
+      <a href="http://localhost:5000" target="_blank" rel="noopener" class="quick__link mono">▸ BANQUE PARTNAIRE :ATLAS BANQUE</a>
+      <a routerLink="/alertes" class="quick__link mono">▸ ALERTES</a>
+      <a routerLink="/ia" class="quick__link mono">▸ IA</a>
+    </nav>
+  </header>
+
+  <!-- ── File de travail analyste ────────────────────── -->
+  @if (stats().alertesOpen > 0) {
+    <a class="workq" routerLink="/alertes" [class.is-urgent]="stats().alertesOpen >= 3">
+      <span class="workq__badge mono">{{ stats().alertesOpen }}</span>
+      <span class="workq__text">
+        <strong>alerte(s) ouverte(s) vous attendent</strong>
+        <span class="workq__sub mono">ouvrir la file d'attente · décision analyste en 3 clics →</span>
+      </span>
+      <span class="workq__arrow">▸</span>
+    </a>
+  }
+
+  <!-- ── Bannière priorité haute/critique ─────────────── -->
+  @if (activeHighCritical() > 0) {
+    <a class="critb" routerLink="/alertes">
+      <span class="critb__badge mono">{{ activeHighCritical() }}</span>
+      <span class="critb__text">
+        <strong>ALERTE(S) HAUTE / CRITIQUE EN COURS</strong>
+        <span class="critb__sub mono">sévérité ÉLEVÉE ou CRITIQUE non résolue · traiter en priorité →</span>
+      </span>
+      <span class="critb__arrow">▸</span>
+    </a>
+  }
+
+  <!-- ── Cartes stats ────────────────────────────────── -->
+  <div class="cards" [class.is-loading]="loading()">
+    <a class="card" routerLink="/clients">
+      <span class="card__label mono">CLIENTS</span>
+      <span class="card__num mono">{{ stats().clients }}</span>
+      <span class="card__foot mono">répertoire →</span>
+    </a>
+    <a class="card" routerLink="/comptes">
+      <span class="card__label mono">COMPTES</span>
+      <span class="card__num mono">{{ stats().comptes }}</span>
+      <span class="card__foot mono">portefeuille →</span>
+    </a>
+    <a class="card" routerLink="/transactions">
+      <span class="card__label mono">TRANSACTIONS</span>
+      <span class="card__num mono cyan">{{ stats().transactions }}</span>
+      <span class="card__foot mono">{{ (txStats()?.volume ?? 0) | number: '1.0-0' }} TND sur {{ actDays() }} j →</span>
+    </a>
+    <a class="card card--alert" routerLink="/alertes">
+      <span class="card__label mono">ALERTES OUVERTES</span>
+      <span class="card__num mono hot">{{ stats().alertesOpen }}</span>
+      <span class="card__foot mono">{{ stats().alertes }} au total · {{ stats().casesOpen }} dossiers actifs →</span>
+    </a>
+    <a class="card" routerLink="/alertes">
+      <span class="card__label mono">DÉCISIONS ANALYSTE</span>
+      <span class="card__num mono cyan">
+        @if (alertStats()?.avgResolutionMinutes !== null && alertStats()?.avgResolutionMinutes !== undefined) {
+          {{ alertStats()!.avgResolutionMinutes | number: '1.0-0' }}<span class="card__unit">min</span>
+        } @else {
+          <span class="card__unit">—</span>
+        }
+      </span>
+      <span class="card__foot mono">
+        {{ resolutionPct() }} % résolues · {{ alertStats()?.closedAlerts ?? 0 }}/{{ stats().alertes }} décisions →
+      </span>
+    </a>
+  </div>
+
+  <!-- ══ 01 · SURVEILLANCE ═══════════════════════════ -->
+  <p class="rowtag mono"><span class="rowtag__n">01</span> SURVEILLANCE</p>
+  <div class="grid grid--2">
+
+    <!-- Donut sévérité -->
+    <div class="panel an">
+      <h3 class="panel__title mono">RÉPARTITION DES ALERTES</h3>
+      @if (sevSegments().length) {
+        <div class="donut">
+          <div class="donut__ring">
+            <svg class="donut__svg" viewBox="0 0 140 140" aria-hidden="true">
+              <circle cx="70" cy="70" r="54" fill="none" stroke="#1a2230" stroke-width="15"
+                      transform="rotate(-90 70 70)" />
+              @for (seg of sevSegments(); track seg.key) {
+                <circle
+                  class="donut__seg" [attr.data-sev]="seg.key"
+                  cx="70" cy="70" r="54"
+                  fill="none" [attr.stroke]="seg.color" stroke-width="15"
+                  transform="rotate(-90 70 70)"
+                  [attr.stroke-dasharray]="seg.dash"
+                  [attr.stroke-dashoffset]="-seg.offset"
+                />
+              }
+              <text x="70" y="66" text-anchor="middle"
+                    font-family="'JetBrains Mono', monospace" font-size="27" font-weight="700"
+                    fill="#e6edf3">{{ alertStats()?.totalAlerts ?? 0 }}</text>
+              <text x="70" y="86" text-anchor="middle"
+                    font-family="'JetBrains Mono', monospace" font-size="8" letter-spacing="1.5"
+                    fill="#8b97a7">ALERTES</text>
+            </svg>
+          </div>
+          <div class="donut__legend">
+            @for (seg of sevSegments(); track seg.key) {
+              <span class="lg" [attr.data-sev]="seg.key">
+                <span class="lg__dot" [style.background]="seg.color"></span>
+                <span class="lg__key mono">{{ seg.key | fr }}</span>
+                <span class="lg__val mono">{{ seg.value }} · {{ seg.pct }}%</span>
+              </span>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty">Aucune alerte.</div>
+      }
+      <p class="an__foot mono">
+        {{ alertStats()?.openGroups ?? 0 }} groupe(s) ouvert(s) ·
+        {{ (alertStats()?.groupCumulAmount ?? 0) | number: '1.0-0' }} TND cumulés ·
+        {{ (alertStats()?.absorbedAmount ?? 0) | number: '1.0-0' }} TND absorbés
+      </p>
+    </div>
+
+    <!-- Dernières alertes -->
+    <div class="panel latest">
+      <h3 class="panel__title mono">DERNIÈRES ALERTES</h3>
+      @for (a of latest(); track a.alertId) {
+        <a class="la-row" routerLink="/alertes">
+          <span class="stripe" [attr.data-sev]="a.severity"></span>
+          <span class="la-main">
+            <span class="la-top">
+              <span class="la-code mono">{{ a.alertCode }}</span>
+              <span class="sev mono" [attr.data-sev]="a.severity">{{ a.severity | fr }}</span>
+            </span>
+            <span class="la-sub mono">{{ a.alertType | fr }}@if (a.amount != null) { · {{ a.amount | number: '1.0-0' }} TND } · {{ a.createdAt | date: 'dd/MM HH:mm' }}</span>
+          </span>
+          <span class="st mono" [attr.data-status]="a.status">{{ a.status | fr }}</span>
+        </a>
+      } @empty {
+        <div class="empty">Aucune alerte.</div>
+      }
+      <a class="all" routerLink="/alertes">toutes les alertes →</a>
+    </div>
+  </div>
+
+  <!-- ══ 02 · FLUX ══════════════════════════════════ -->
+  <p class="rowtag mono"><span class="rowtag__n">02</span> FLUX TRANSACTIONS</p>
+  <div class="grid grid--3">
+
+    <!-- Activité 7 / 30 jours -->
+    <div class="panel an">
+      <div class="panel__head">
+        <h3 class="panel__title mono">ACTIVITÉ {{ actDays() }} J</h3>
+        <div class="tgl mono">
+          <button [class.is-on]="actDays() === 7" (click)="setActDays(7)">7 J</button>
+          <button [class.is-on]="actDays() === 30" (click)="setActDays(30)">30 J</button>
+        </div>
+      </div>
+      @if (activityBars().length) {
+        <svg class="act" viewBox="0 0 274 120" aria-hidden="true">
+          <line x1="0" y1="96" x2="274" y2="96" stroke="rgba(148,163,184,0.12)" stroke-width="1" />
+          @for (b of activityBars(); track b.day + b.x) {
+            <rect
+              class="act__bar" [class.is-hot]="b.hot"
+              [attr.x]="b.x" [attr.y]="b.y"
+              [attr.width]="b.w" [attr.height]="b.h" rx="3"
+              fill="#ffb020" fill-opacity="0.55"
+            />
+            @if (b.showVal) {
+              <text class="act__val" [attr.x]="b.x + b.w / 2" [attr.y]="b.y - 5" text-anchor="middle"
+                    font-family="'JetBrains Mono', monospace" font-size="10.5" fill="#e6edf3">{{ b.count }}</text>
+            }
+            @if (b.showDay) {
+              <text class="act__day" [attr.x]="b.x + b.w / 2" y="112" text-anchor="middle"
+                    font-family="'JetBrains Mono', monospace" font-size="10.5" fill="#8b97a7">{{ b.day }}</text>
+            }
+          }
+        </svg>
+      } @else {
+        <div class="empty">Pas de transaction.</div>
+      }
+      <p class="an__foot mono">
+        volume {{ actDays() }} j : {{ (txStats()?.volume ?? 0) | number: '1.0-0' }} TND
+        @if (trend() !== null) {
+          <span class="trend mono" [class.is-up]="trend()! >= 0" [class.is-down]="trend()! < 0">
+            {{ trend()! >= 0 ? '▲ +' : '▼ −' }} {{ abs(trend()!) | number: '1.0-1' }} % vs période précédente
+          </span>
+        } @else {
+          <span class="trend is-flat mono">tendance : pas de période précédente</span>
+        }
+      </p>
+    </div>
+
+    <!-- Répartition type / canal -->
+    <div class="panel split">
+      <h3 class="panel__title mono">RÉPARTITION TYPE &amp; CANAL</h3>
+      <div class="sp">
+        <p class="sp__sub mono">PAR TYPE</p>
+        @for (t of typeList(); track t.key) {
+          <div class="sp__row">
+            <span class="sp__key mono">{{ t.key | fr }}</span>
+            <span class="sp__bar"><span class="sp__fill" [style.width.%]="t.pct"></span></span>
+            <span class="sp__val mono">{{ t.count }}</span>
+            <span class="sp__pct mono">{{ t.pct | number: '1.0-0' }} %</span>
+          </div>
+        } @empty {
+          <div class="empty">Pas de transaction.</div>
+        }
+      </div>
+      <div class="sp">
+        <p class="sp__sub mono">PAR CANAL</p>
+        @for (c of channelList(); track c.key) {
+          <div class="sp__row">
+            <span class="sp__key mono">{{ c.key | fr }}</span>
+            <span class="sp__bar"><span class="sp__fill" [style.width.%]="c.pct"></span></span>
+            <span class="sp__val mono">{{ c.count }}</span>
+            <span class="sp__pct mono">{{ c.pct | number: '1.0-0' }} %</span>
+          </div>
+        } @empty {
+          <div class="empty">Pas de transaction.</div>
+        }
+      </div>
+      <p class="an__foot mono">répartition sur l'historique complet · {{ txStats()?.totalTransactions ?? 0 }} transactions</p>
+    </div>
+
+    <!-- Top bénéficiaires -->
+    <div class="panel topb">
+      <h3 class="panel__title mono">MEILLEURS BÉNÉFICIAIRES</h3>
+      @if (topBeneficiaries().length) {
+        <div class="tb">
+          @for (b of topBeneficiaries(); track b.name) {
+            <div class="tb__row">
+              <span class="tb__name mono">{{ b.name }}</span>
+              <span class="tb__bar">
+                <span class="tb__fill" [style.width.%]="(b.count / tbMax()) * 100"></span>
+              </span>
+              <span class="tb__count mono">{{ b.count }} tx</span>
+              <span class="tb__amt mono">{{ b.totalAmount | number: '1.0-0' }} TND</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty">Pas de transaction.</div>
+      }
+      <p class="an__foot mono">
+        classement sur l'historique complet · {{ txStats()?.totalTransactions ?? 0 }} transactions
+      </p>
+    </div>
+  </div>
+
+  <!-- Recherche : combien de transactions ? -->
+  <div class="panel srch">
+    <div class="srch__head">
+      <h3 class="panel__title mono">COMBIEN ? RECHERCHE DE TRANSACTIONS</h3>
+      @if (searching()) {
+        <span class="srch__busy mono">· requête en cours…</span>
+      }
+    </div>
+
+    <div class="srch__bar">
+      <label class="srch__fld srch__fld--name">
+        <span class="srch__lab mono">BÉNÉFICIAIRE</span>
+        <input
+          class="srch__in mono" type="text" placeholder="ex. Mohamed Trabelsi"
+          [value]="fName()" (input)="fName.set($any($event.target).value)"
+          (keyup.enter)="runSearch()"
+        />
+      </label>
+      <label class="srch__fld srch__fld--client">
+        <span class="srch__lab mono">CLIENT</span>
+        <select class="srch__in mono" [value]="fClient()" (change)="fClient.set($any($event.target).value)">
+          <option value="">tous les clients</option>
+          @for (c of clientOptions(); track c.customerId) {
+            <option [value]="c.customerId">{{ c.lastName }} {{ c.firstName }} (#{{ c.customerId }})</option>
+          }
+        </select>
+      </label>
+      <label class="srch__fld srch__fld--date">
+        <span class="srch__lab mono">DU</span>
+        <input class="srch__in mono" type="date" [value]="fFrom()" (change)="fFrom.set($any($event.target).value)" />
+      </label>
+      <label class="srch__fld srch__fld--date">
+        <span class="srch__lab mono">AU</span>
+        <input class="srch__in mono" type="date" [value]="fUntil()" (change)="fUntil.set($any($event.target).value)" />
+      </label>
+      <button class="srch__go mono" (click)="runSearch()" [disabled]="searching()">▸ FILTRER</button>
+      <button class="srch__rst mono" (click)="resetSearch()">réinitialiser</button>
+    </div>
+
+    @if (searchResult(); as r) {
+      <p class="srch__count mono">
+        <span class="srch__n mono">{{ r.total }}</span> transaction(s)
+        @if (fName()) {
+          · bénéficiaire contient « {{ fName() }} »
+        }
+        @if (fClient()) {
+          · client sélectionné
+        }
+        @if (fFrom() || fUntil()) {
+          · du {{ fFrom() || 'début' }} au {{ fUntil() || "aujourd'hui" }}
+        }
+      </p>
+      @if (r.rows.length) {
+        <div class="srch__tbl">
+          <div class="srch__row srch__row--h mono">
+            <span>DATE</span>
+            <span>COMPTE</span>
+            <span>BÉNÉFICIAIRE</span>
+            <span>TYPE</span>
+            <span class="al-r">MONTANT</span>
+            <span>STATUT</span>
+          </div>
+          @for (t of r.rows; track t.transactionId) {
+            <div class="srch__row mono">
+              <span>{{ t.transactionDate | date: 'dd/MM HH:mm' }}</span>
+              <span>#{{ t.accountId }}</span>
+              <span class="srch__ben">{{ t.beneficiaryName || '—' }}</span>
+              <span>{{ t.transactionType | fr }}</span>
+              <span class="al-r srch__amt">{{ t.amount | number: '1.0-2' }} TND</span>
+              <span class="st" [attr.data-status]="t.status">{{ t.status | fr }}</span>
+            </div>
+          }
+        </div>
+        <p class="srch__more mono">
+          affichage des {{ r.rows.length }} premiers ·
+          <a routerLink="/transactions">toutes les transactions →</a>
+        </p>
+      } @else {
+        <div class="empty">Aucune transaction ne correspond à ces filtres.</div>
+      }
+    } @else {
+      <p class="srch__hint mono">
+        Filtrez par nom, client ou période pour compter les transactions correspondantes
+        (ex. : « Trabelsi », un client, du 11/10 au 12/10) — le compteur s'affiche ici.
+      </p>
+    }
+  </div>
+
+  <!-- ══ 03 · INVESTIGATION ═════════════════════════ -->
+  <p class="rowtag mono"><span class="rowtag__n">03</span> INVESTIGATION</p>
+  <div class="grid grid--2">
+
+    <!-- Watchlist risk_profiles -->
+    <div class="panel an">
+      <h3 class="panel__title mono">PROFILS À SURVEILLER</h3>
+      @if (watchlist().length) {
+        <div class="wl">
+          @for (p of watchlist(); track p.customerId) {
+            <div class="wl__row">
+              <span class="wl__id mono">CLIENT #{{ p.customerId }}</span>
+              <span class="sev mono" [attr.data-sev]="p.profileRiskLevel">{{ p.profileRiskLevel | fr }}</span>
+              <span class="wl__figs mono">
+                @if (p.avgAmount !== null) {
+                  <span>moy {{ p.avgAmount | number: '1.0-0' }}</span>
+                }
+                @if (p.p95Amount !== null) {
+                  <span>p95 {{ p.p95Amount | number: '1.0-0' }}</span>
+                }
+                @if (p.usualCountry) {
+                  <span>
+                    {{ p.usualCountry }}
+                    @if (p.usualTransactionHour !== null) {
+                      · {{ p.usualTransactionHour }}h
+                    }
+                  </span>
+                }
+              </span>
+            </div>
+          }
+        </div>
+        <p class="an__foot mono">
+          profil glissant {{ watchlist()[0]?.statsWindowDays ?? 90 }} j ·
+          {{ evalStats()?.totalAssessments ?? 0 }} évaluations ·
+          score moy {{ evalStats()?.avgScore ?? 0 }}
+        </p>
+      } @else {
+        <div class="empty">Aucun profil.</div>
+      }
+    </div>
+
+    <!-- Signal Constellation -->
+    <div class="panel constellation">
+      <div class="con-head">
+        <h3 class="panel__title mono">SIGNAL CONSTELLATION</h3>
+      </div>
+
+      <p class="con-meta mono">
+        graphe d'investigation : entités réelles · relations vérifiables · lecture IA (LLM)
+      </p>
+
+      <div class="con-cta">
+        <p class="con-cta__text">
+          Ouvre le réseau complet autour d'une alerte : clients, comptes, transactions,
+          bénéficiaires, appareils et IP reliés par des preuves — avec l'analyse en français
+          de SENTINEL·AI (Ollama) ou du moteur déterministe.
+        </p>
+        @if (firstOpenAlertId(); as id) {
+          <a class="con-cta__btn mono" [routerLink]="['/constellation', id]">
+            ▸ OUVRIR LA CONSTELLATION (ALERTE {{ firstOpenAlertCode() }})
+          </a>
+          <a class="con-cta__alt mono" routerLink="/alertes">choisir une autre alerte →</a>
+        } @else {
+          <a class="con-cta__btn con-cta__btn--dim mono" routerLink="/alertes">
+            ▸ AUCUNE ALERTE OUVERTE — VOIR LA FILE
+          </a>
+        }
+      </div>
+
+      <svg class="con-svg con-svg--idle" viewBox="0 0 620 200" aria-hidden="true">
+        <line class="con-link con-link--idle" x1="310" y1="100" x2="150" y2="40" />
+        <line class="con-link con-link--idle" x1="310" y1="100" x2="470" y2="40" />
+        <line class="con-link con-link--idle" x1="310" y1="100" x2="120" y2="160" />
+        <line class="con-link con-link--idle" x1="310" y1="100" x2="500" y2="160" />
+        <line class="con-link con-link--idle" x1="310" y1="100" x2="310" y2="20" />
+        <circle class="con-node-idle" cx="150" cy="40" r="10" />
+        <circle class="con-node-idle" cx="470" cy="40" r="10" />
+        <circle class="con-node-idle" cx="120" cy="160" r="10" />
+        <circle class="con-node-idle" cx="500" cy="160" r="10" />
+        <circle class="con-node-idle" cx="310" cy="20" r="8" />
+        <circle class="con-core" cx="310" cy="100" r="36" />
+        <text class="con-core-text" x="310" y="97">SENTINEL</text>
+        <text class="con-core-sub" x="310" y="112">AI</text>
+      </svg>
+    </div>
+  </div>
+</section>
