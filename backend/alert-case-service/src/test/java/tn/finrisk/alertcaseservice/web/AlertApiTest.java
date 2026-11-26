@@ -92,6 +92,17 @@ class AlertApiTest {
     // --------------------------------------------------------------- ALERTES
 
     @Test
+    void rechercheParEvaluation_retourneAlerteOu404() throws Exception {
+        when(alertService.findByAssessmentId(42L)).thenReturn(java.util.Optional.of(alert(7L, AlertStatus.OPEN)));
+        when(alertService.findByAssessmentId(43L)).thenReturn(java.util.Optional.empty());
+        mvc.perform(get("/api/alerts/assessment/42"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alertId").value(7))
+                .andExpect(jsonPath("$.assessmentId").value(42));
+        mvc.perform(get("/api/alerts/assessment/43")).andExpect(status().isNotFound());
+    }
+
+    @Test
     void creationAlerte_201AvecLocation() throws Exception {
         when(alertService.create(any(), isNull(), isNull())).thenReturn(alert(42L, AlertStatus.OPEN));
 

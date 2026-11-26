@@ -113,6 +113,16 @@ class GatewayApiTest {
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/users").header("Authorization", authorization))
                 .andExpect(status().isForbidden());
+        // Seule la recherche precise est permise ; la cible de test etant
+        // indisponible, 503 prouve que le filtre l'a laissee passer.
+        mvc.perform(get("/api/alerts/assessment/42").header("Authorization", authorization))
+                .andExpect(status().isServiceUnavailable());
+        mvc.perform(get("/api/alerts").header("Authorization", authorization))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/alerts/42").header("Authorization", authorization))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/alerts/assessment/42").header("Authorization", authorization))
+                .andExpect(status().isForbidden());
     }
 
     @Test

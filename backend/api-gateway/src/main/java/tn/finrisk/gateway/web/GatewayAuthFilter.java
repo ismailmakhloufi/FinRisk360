@@ -127,7 +127,8 @@ public class GatewayAuthFilter extends OncePerRequestFilter {
         return switch (method) {
             case "GET" -> path.matches("/api/(customers(/[0-9]+(/accounts)?)?"
                     + "|accounts(/[0-9]+)?|transactions(/[0-9]+)?"
-                    + "|merchants(/[0-9]+)?|evaluations/transaction/[0-9]+)");
+                    + "|merchants(/[0-9]+)?|evaluations/transaction/[0-9]+"
+                    + "|alerts/assessment/[0-9]+)");
             case "POST" -> path.matches("/api/(customers|accounts|transactions|merchants|evaluations)");
             case "DELETE" -> path.matches("/api/(customers/[0-9]+|merchants/[0-9]+"
                     + "|accounts|transactions|evaluations|alerts)");

@@ -275,8 +275,18 @@ def fetch_customer_dossier(customer_id: int) -> dict:
             pass  # transaction jamais evaluee : pas d'evaluation a afficher
 
     assessment_ids = {e["assessmentId"] for e in evaluations}
-    alerts = [a for a in _all_pages("/api/alerts", sort="alertId")
-              if a["assessmentId"] in assessment_ids]
+    alerts = []
+    for assessment_id in assessment_ids:
+        response = api("GET", f"/api/alerts/assessment/{assessment_id}")
+        if response.status_code == 404:
+            continue
+        if response.status_code >= 400:
+            try:
+                message = response.json().get("message", "")
+            except ValueError:
+                message = response.text[:200]
+            raise ApiException(f"{response.status_code} - {message or 'erreur API'}")
+        alerts.append(response.json())
 
     return {
         "customer": customer,

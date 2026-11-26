@@ -116,6 +116,12 @@ public class AlertController {
         return AlertResponse.from(alertService.get(id));
     }
 
+    /** Recherche d'une alerte par evaluation, sans exposer la liste globale. */
+    @GetMapping("/assessment/{assessmentId}")
+    public ResponseEntity<AlertResponse> getByAssessment(@PathVariable Long assessmentId) {
+        return ResponseEntity.of(alertService.findByAssessmentId(assessmentId).map(AlertResponse::from));
+    }
+
     /** PATCH /api/alerts/{id}/status { "status": "ACKNOWLEDGED" } */
     @Operation(summary = "Changer le statut d'une alerte",
             description = "Machine a etats AlertStatus : transition hors graphe -> 409 ; "

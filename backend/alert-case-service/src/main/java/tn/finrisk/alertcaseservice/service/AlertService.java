@@ -115,6 +115,12 @@ public class AlertService {
                 .orElseThrow(() -> new AlertNotFoundException("alertId", alertId));
     }
 
+    /** Recherche precise, y compris les alertes absorbees par un groupe. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Alert> findByAssessmentId(Long assessmentId) {
+        return alertRepository.findByAssessmentId(assessmentId);
+    }
+
     /**
      * GET /api/alerts — page, filtree par statut si fourni.
      * SANS FILTRE : les alertes ABSORBEEs sont EXCLUES — la file principale
